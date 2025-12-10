@@ -51,15 +51,27 @@ export const getSyncConfig = (): SyncConfig => {
     return {
       autoBackup: false,
       intervalMinutes: 60, // Mặc định 60 phút
-      lastBackup: new Date().toISOString()
+      lastBackup: new Date().toISOString(),
+      expiryAlertDays: 30, // Mặc định cảnh báo trước 30 ngày
+      themeColor: 'blue' // Mặc định màu xanh
     };
   }
-  return JSON.parse(data);
+  // Migration for old config
+  const config = JSON.parse(data);
+  if (config.expiryAlertDays === undefined) {
+      config.expiryAlertDays = 30;
+  }
+  if (!config.themeColor) {
+      config.themeColor = 'blue';
+  }
+  return config;
 };
 
 export const saveSyncConfig = (config: SyncConfig): void => {
   localStorage.setItem(KEYS.SYNC_CONFIG, JSON.stringify(config));
   // Không cần dispatch event vì logic check sẽ đọc trực tiếp từ localStorage mỗi lần chạy interval
+  // Tuy nhiên, dispatch để component Dashboard cập nhật UI ngay lập tức
+  window.dispatchEvent(new Event('config-change'));
 };
 
 export const updateLastBackupTime = (): void => {
@@ -110,8 +122,8 @@ export const getProducts = (): Product[] => {
   if (!data) {
     // Seed data
     const seed: Product[] = [
-      { id: '1', code: 'SP001', name: 'Gạo ST25', unit: 'kg', price: 35000, cost: 28000, stock: 100, category: 'Lương thực' },
-      { id: '2', code: 'SP002', name: 'Nước mắm Nam Ngư', unit: 'chai', price: 42000, cost: 35000, stock: 50, category: 'Gia vị' },
+      { id: '1', code: 'SP001', name: 'Gạo ST25', unit: 'kg', price: 35000, cost: 28000, stock: 100, category: 'Lương thực', batchNumber: 'L001', expiryDate: '2025-12-31' },
+      { id: '2', code: 'SP002', name: 'Nước mắm Nam Ngư', unit: 'chai', price: 42000, cost: 35000, stock: 50, category: 'Gia vị', batchNumber: 'L002', expiryDate: '2024-10-20' },
       { id: '3', code: 'SP003', name: 'Mì Hảo Hảo', unit: 'thùng', price: 115000, cost: 105000, stock: 200, category: 'Lương thực' },
     ];
     localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(seed));
@@ -158,9 +170,16 @@ export const createInventoryTransaction = (transaction: Omit<InventoryTransactio
     if (productIndex >= 0) {
       if (newTrans.type === 'import') {
         products[productIndex].stock += item.quantity;
-        // Optional: Update cost price if provided
+        // Update cost price if provided
         if (item.cost && item.cost > 0) {
             products[productIndex].cost = item.cost;
+        }
+        // Update Batch & Expiry if provided (Only for Import)
+        if (item.batchNumber) {
+            products[productIndex].batchNumber = item.batchNumber;
+        }
+        if (item.expiryDate) {
+            products[productIndex].expiryDate = item.expiryDate;
         }
       } else {
         products[productIndex].stock -= item.quantity;

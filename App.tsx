@@ -15,6 +15,48 @@ import DataSync from './components/DataSync'; // New Component
 import { getCustomers, getProducts, getOrders, getCurrentUser, getMenuConfig, getSyncConfig, exportDatabase, updateLastBackupTime } from './services/db';
 import { Menu, Lock, ShieldAlert, DownloadCloud } from 'lucide-react';
 
+// Theme definitions mapped to CSS variables
+const THEMES: Record<string, Record<string, string>> = {
+  blue: {
+    '50': '#eff6ff', '100': '#dbeafe', '200': '#bfdbfe', '300': '#93c5fd', 
+    '400': '#60a5fa', '500': '#3b82f6', '600': '#2563eb', '700': '#1d4ed8', 
+    '800': '#1e40af', '900': '#1e3a8a', '950': '#172554'
+  },
+  emerald: {
+    '50': '#ecfdf5', '100': '#d1fae5', '200': '#a7f3d0', '300': '#6ee7b7',
+    '400': '#34d399', '500': '#10b981', '600': '#059669', '700': '#047857',
+    '800': '#065f46', '900': '#064e3b', '950': '#022c22'
+  },
+  violet: {
+    '50': '#f5f3ff', '100': '#ede9fe', '200': '#ddd6fe', '300': '#c4b5fd',
+    '400': '#a78bfa', '500': '#8b5cf6', '600': '#7c3aed', '700': '#6d28d9',
+    '800': '#5b21b6', '900': '#4c1d95', '950': '#2e1065'
+  },
+  amber: {
+    '50': '#fffbeb', '100': '#fef3c7', '200': '#fde68a', '300': '#fcd34d',
+    '400': '#fbbf24', '500': '#f59e0b', '600': '#d97706', '700': '#b45309',
+    '800': '#92400e', '900': '#78350f', '950': '#451a03'
+  },
+  rose: {
+    '50': '#fff1f2', '100': '#ffe4e6', '200': '#fecdd3', '300': '#fda4af',
+    '400': '#fb7185', '500': '#f43f5e', '600': '#e11d48', '700': '#be123c',
+    '800': '#9f1239', '900': '#881337', '950': '#4c0519'
+  },
+  cyan: {
+    '50': '#ecfeff', '100': '#cffafe', '200': '#a5f3fc', '300': '#67e8f9',
+    '400': '#22d3ee', '500': '#06b6d4', '600': '#0891b2', '700': '#0e7490',
+    '800': '#155e75', '900': '#164e63', '950': '#083344'
+  }
+};
+
+const applyTheme = (colorName: string) => {
+  const theme = THEMES[colorName] || THEMES['blue'];
+  const root = document.documentElement;
+  Object.keys(theme).forEach(key => {
+    root.style.setProperty(`--theme-${key}`, theme[key]);
+  });
+};
+
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.SALES); // Default to Sales as it's common for both
@@ -55,9 +97,24 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    // Request persistent storage to prevent browser eviction
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().then(granted => {
+        if (granted) {
+          console.log("Storage will not be cleared except by explicit user action");
+        } else {
+          console.log("Storage may be cleared by the UA under storage pressure.");
+        }
+      });
+    }
+
     // Check auth
     const user = getCurrentUser();
     setCurrentUser(user);
+    
+    // Initial Theme Application
+    const config = getSyncConfig();
+    applyTheme(config.themeColor || 'blue');
     
     if (user) {
         loadData();
@@ -77,9 +134,14 @@ const App: React.FC = () => {
     // Listen to custom event for DB changes (simulate real-time sync)
     const handleDbChange = () => loadData();
     const handleMenuConfigChange = () => setMenuConfig(getMenuConfig());
+    const handleConfigChange = () => {
+       const newConfig = getSyncConfig();
+       applyTheme(newConfig.themeColor || 'blue');
+    };
 
     window.addEventListener('db-change', handleDbChange);
     window.addEventListener('menu-config-change', handleMenuConfigChange);
+    window.addEventListener('config-change', handleConfigChange);
 
     // --- AUTO BACKUP LOGIC ---
     // Check every 1 minute
@@ -99,6 +161,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('db-change', handleDbChange);
       window.removeEventListener('menu-config-change', handleMenuConfigChange);
+      window.removeEventListener('config-change', handleConfigChange);
       clearInterval(backupInterval);
     };
   }, []);
@@ -141,7 +204,14 @@ const App: React.FC = () => {
     // 2. Render View dựa trên Role cứng (Hardcoded Role Check)
     switch (currentView) {
       case ViewState.DASHBOARD:
-        return isAdmin ? <Dashboard products={products} customers={customers} orders={orders} /> : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
+        return isAdmin ? (
+          <Dashboard 
+            products={products} 
+            customers={customers} 
+            orders={orders} 
+            onNavigate={setCurrentView} 
+          />
+        ) : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
       case ViewState.INVENTORY:
         return <Inventory products={products} />;
       case ViewState.IMPORT_STOCK:

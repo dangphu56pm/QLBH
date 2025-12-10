@@ -8,6 +8,8 @@ export interface Product {
   stock: number;
   category: string;
   barcode?: string; // Mã vạch/QR code để quét
+  batchNumber?: string; // Số lô
+  expiryDate?: string; // Ngày hết hạn (ISO String YYYY-MM-DD)
 }
 
 export interface Category {
@@ -67,6 +69,8 @@ export interface InventoryTransactionItem {
   productName: string;
   quantity: number;
   cost?: number; // Giá nhập (chỉ dùng cho import)
+  batchNumber?: string; // Số lô (cập nhật khi nhập)
+  expiryDate?: string; // Hạn sử dụng (cập nhật khi nhập)
 }
 
 export interface InventoryTransaction {
@@ -115,4 +119,6 @@ export interface SyncConfig {
   autoBackup: boolean;
   intervalMinutes: number; // Tần suất backup (phút)
   lastBackup: string; // Thời điểm backup gần nhất (ISO String)
+  expiryAlertDays: number; // Cảnh báo hết hạn trước bao nhiêu ngày (Mặc định 30)
+  themeColor?: string; // Màu chủ đạo (blue, green, orange, purple, rose, slate)
 }

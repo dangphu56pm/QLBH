@@ -120,7 +120,9 @@ const StockMovement: React.FC<StockMovementProps> = ({ products, currentUser, mo
         productName: product.name,
         quantity: 1,
         // Luôn lưu giá vốn để tính giá trị kho (dù là nhập hay xuất)
-        cost: product.cost 
+        cost: product.cost,
+        batchNumber: product.batchNumber, // Kế thừa batch hiện tại nếu có
+        expiryDate: product.expiryDate // Kế thừa expiry hiện tại nếu có
       }];
     });
     setProductSearch('');
@@ -150,6 +152,13 @@ const StockMovement: React.FC<StockMovementProps> = ({ products, currentUser, mo
       if (!isImport) return; // Chỉ cho phép sửa giá khi nhập kho
       setCart(prev => prev.map(item => 
           item.productId === productId ? { ...item, cost: newCost } : item
+      ));
+  };
+  
+  const updateBatchInfo = (productId: string, field: 'batchNumber' | 'expiryDate', value: string) => {
+      if (!isImport) return; // Chỉ cho phép sửa khi nhập kho
+      setCart(prev => prev.map(item => 
+          item.productId === productId ? { ...item, [field]: value } : item
       ));
   };
 
@@ -253,16 +262,21 @@ const StockMovement: React.FC<StockMovementProps> = ({ products, currentUser, mo
         <table>
           <thead>
             <tr>
-              <th style="width: 40%">Tên SP</th>
-              <th class="text-center" style="width: 20%">Số lượng</th>
-              <th class="text-right" style="width: 20%">Đơn giá vốn</th>
-              <th class="text-right" style="width: 20%">Thành tiền</th>
+              <th style="width: 35%">Tên SP</th>
+              <th style="width: 25%">Lô / Hạn</th>
+              <th class="text-center" style="width: 15%">SL</th>
+              <th class="text-right" style="width: 15%">Đơn giá</th>
+              <th class="text-right" style="width: 10%">Thành tiền</th>
             </tr>
           </thead>
           <tbody>
             ${transaction.items.map(item => `
               <tr>
                 <td>${item.productName}</td>
+                <td style="font-size: 12px">
+                    ${item.batchNumber ? `Lô: ${item.batchNumber}` : ''} <br/>
+                    ${item.expiryDate ? `Hạn: ${new Date(item.expiryDate).toLocaleDateString('vi-VN')}` : ''}
+                </td>
                 <td class="text-center">${item.quantity}</td>
                 <td class="text-right">${(item.cost || 0).toLocaleString('vi-VN')}</td>
                 <td class="text-right">${((item.cost || 0) * item.quantity).toLocaleString('vi-VN')}</td>
@@ -369,12 +383,14 @@ const StockMovement: React.FC<StockMovementProps> = ({ products, currentUser, mo
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                         {cart.map(item => (
                             <div key={item.productId} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border border-slate-100 rounded-lg gap-3">
-                                <div className="flex-1">
+                                <div className="flex-1 space-y-2">
                                     <h4 className="font-medium text-slate-800">{item.productName}</h4>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-xs text-slate-500">Giá vốn:</span>
+                                    
+                                    {/* Cost Input */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-slate-500 w-16">Giá vốn:</span>
                                         {isImport ? (
-                                            <div className="relative w-28">
+                                            <div className="relative w-32">
                                                 <input 
                                                     type="number"
                                                     className="w-full p-1 pl-2 pr-6 text-sm border rounded focus:ring-1 focus:ring-blue-500 outline-none"
@@ -387,8 +403,32 @@ const StockMovement: React.FC<StockMovementProps> = ({ products, currentUser, mo
                                             <span className="font-medium text-slate-700 text-sm">{(item.cost || 0).toLocaleString('vi-VN')} ₫</span>
                                         )}
                                     </div>
+
+                                    {/* Batch & Expiry Input (Only Import) */}
+                                    {isImport && (
+                                        <div className="flex flex-wrap gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-slate-500 w-16">Số Lô:</span>
+                                                <input 
+                                                    className="w-32 p-1 px-2 text-sm border rounded focus:ring-1 focus:ring-blue-500 outline-none"
+                                                    value={item.batchNumber || ''}
+                                                    placeholder="VD: L001"
+                                                    onChange={(e) => updateBatchInfo(item.productId, 'batchNumber', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-slate-500">Hạn SD:</span>
+                                                <input 
+                                                    type="date"
+                                                    className="w-32 p-1 px-2 text-sm border rounded focus:ring-1 focus:ring-blue-500 outline-none"
+                                                    value={item.expiryDate || ''}
+                                                    onChange={(e) => updateBatchInfo(item.productId, 'expiryDate', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 self-start sm:self-center">
                                     <div className="flex items-center gap-1">
                                         <button 
                                             onClick={() => updateQuantity(item.productId, -1)} 
@@ -739,6 +779,7 @@ const TransactionDetailModal: React.FC<{
                             <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-100">
                                 <tr>
                                     <th className="px-4 py-3">Sản phẩm</th>
+                                    <th className="px-4 py-3">Chi tiết Lô</th>
                                     <th className="px-4 py-3 text-center">SL</th>
                                     <th className="px-4 py-3 text-right">Đơn giá</th>
                                     <th className="px-4 py-3 text-right">Thành tiền</th>
@@ -748,6 +789,11 @@ const TransactionDetailModal: React.FC<{
                                 {transaction.items.map((item, idx) => (
                                     <tr key={idx}>
                                         <td className="px-4 py-3 font-medium text-slate-800">{item.productName}</td>
+                                        <td className="px-4 py-3 text-slate-500 text-xs">
+                                            {item.batchNumber ? <div>Lô: {item.batchNumber}</div> : ''}
+                                            {item.expiryDate ? <div>Hạn: {new Date(item.expiryDate).toLocaleDateString('vi-VN')}</div> : ''}
+                                            {!item.batchNumber && !item.expiryDate && <span>-</span>}
+                                        </td>
                                         <td className="px-4 py-3 text-center text-slate-600">{item.quantity}</td>
                                         <td className="px-4 py-3 text-right text-slate-600">{(item.cost || 0).toLocaleString('vi-VN')}</td>
                                         <td className="px-4 py-3 text-right font-bold text-slate-800">

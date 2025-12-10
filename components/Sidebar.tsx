@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ViewState, User, MenuConfigItem } from '../types';
-import { LayoutDashboard, ShoppingCart, Users, Package, Wallet, LogOut, UserCog, Settings, Layout, FolderOpen, List, ChevronDown, ChevronRight, ArrowDownToLine, ArrowUpFromLine, Database } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Users, Package, Wallet, LogOut, UserCog, Settings, Layout, FolderOpen, List, ChevronDown, ChevronRight, ArrowDownToLine, ArrowUpFromLine, Database, Clock } from 'lucide-react';
 import { logout, getMenuConfig } from '../services/db';
 
 interface SidebarProps {
@@ -29,6 +29,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, se
   const isAdmin = currentUser?.role === 'admin';
   const [menuConfig, setMenuConfig] = useState<MenuConfigItem[]>([]);
   const [inventoryOpen, setInventoryOpen] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const loadMenu = () => {
       setMenuConfig(getMenuConfig());
@@ -37,7 +38,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, se
   useEffect(() => {
       loadMenu();
       window.addEventListener('menu-config-change', loadMenu);
-      return () => window.removeEventListener('menu-config-change', loadMenu);
+      
+      // Clock timer
+      const timer = setInterval(() => {
+        setCurrentTime(new Date());
+      }, 1000);
+
+      return () => {
+        window.removeEventListener('menu-config-change', loadMenu);
+        clearInterval(timer);
+      };
   }, []);
 
   // Check visibility for sub-menus
@@ -219,6 +229,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, se
         </nav>
         
         <div className="p-4 border-t border-slate-800 space-y-2">
+            {/* Clock Widget */}
+            <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700/50 mb-2 shadow-inner">
+                <p className="text-2xl font-bold text-blue-400 font-mono tracking-wider">
+                    {currentTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+                <p className="text-xs text-slate-400 mt-1 capitalize flex items-center justify-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {currentTime.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </p>
+            </div>
+
             {/* Admin Tool: Menu Management */}
             {isAdmin && (
                 <button 

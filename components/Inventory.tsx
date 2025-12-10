@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Product, Category } from '../types';
-import { saveProduct, deleteProduct, getCategories } from '../services/db';
-import { Plus, Search, Edit2, Trash2, Package, QrCode, ScanLine, Printer, Filter, FolderOpen, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { saveProduct, deleteProduct, getCategories, getSyncConfig } from '../services/db';
+import { Plus, Search, Edit2, Trash2, Package, QrCode, ScanLine, Printer, Filter, FolderOpen, AlertTriangle, ChevronLeft, ChevronRight, Calendar, X, ListFilter } from 'lucide-react';
 import QRCode from 'react-qr-code';
 
 interface InventoryProps {
@@ -14,9 +14,16 @@ declare const Html5QrcodeScanner: any;
 const Inventory: React.FC<InventoryProps> = ({ products }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tất cả');
+  
+  // Advanced Filters State
+  const [showFilters, setShowFilters] = useState(false);
+  const [batchFilter, setBatchFilter] = useState('');
+  const [expiryFilter, setExpiryFilter] = useState('');
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [expiryAlertDays, setExpiryAlertDays] = useState(30);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,32 +36,47 @@ const Inventory: React.FC<InventoryProps> = ({ products }) => {
   // State cho Delete Modal
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
-  // Load categories (Just for dropdown)
-  const loadCategories = () => {
+  // Load categories and config
+  const loadData = () => {
     setCategories(getCategories());
+    setExpiryAlertDays(getSyncConfig().expiryAlertDays);
   };
 
   useEffect(() => {
-    loadCategories();
-    window.addEventListener('category-change', loadCategories);
-    return () => window.removeEventListener('category-change', loadCategories);
+    loadData();
+    window.addEventListener('category-change', loadData);
+    window.addEventListener('config-change', loadData);
+    return () => {
+        window.removeEventListener('category-change', loadData);
+        window.removeEventListener('config-change', loadData);
+    };
   }, []);
 
   // Filter products
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.barcode && p.barcode.includes(searchTerm));
+      const term = searchTerm.toLowerCase();
+      // Main search: Name, Code, Barcode AND NOW Batch Number for convenience
+      const matchesSearch = 
+        p.name.toLowerCase().includes(term) ||
+        p.code.toLowerCase().includes(term) ||
+        (p.barcode && p.barcode.includes(term)) ||
+        (p.batchNumber && p.batchNumber.toLowerCase().includes(term));
+        
       const matchesCategory = selectedCategory === 'Tất cả' || p.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+
+      // Advanced Filters
+      const matchesBatch = !batchFilter || (p.batchNumber && p.batchNumber.toLowerCase().includes(batchFilter.toLowerCase()));
+      const matchesExpiry = !expiryFilter || (p.expiryDate === expiryFilter);
+
+      return matchesSearch && matchesCategory && matchesBatch && matchesExpiry;
     });
-  }, [products, searchTerm, selectedCategory]);
+  }, [products, searchTerm, selectedCategory, batchFilter, expiryFilter]);
 
   // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedCategory]);
+  }, [searchTerm, selectedCategory, batchFilter, expiryFilter]);
 
   // Pagination Logic
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -88,60 +110,125 @@ const Inventory: React.FC<InventoryProps> = ({ products }) => {
     setIsScannerOpen(false);
   };
 
+  // Clear all filters
+  const clearFilters = () => {
+      setSearchTerm('');
+      setSelectedCategory('Tất cả');
+      setBatchFilter('');
+      setExpiryFilter('');
+  };
+
+  // Helper function for expiration check
+  const getExpirationStatus = (dateStr?: string) => {
+      if (!dateStr) return { isExpiring: false, label: '' };
+      
+      const today = new Date();
+      const expiry = new Date(dateStr);
+      const diffTime = expiry.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 0) return { isExpiring: true, isExpired: true, label: 'Đã hết hạn' };
+      if (diffDays <= expiryAlertDays) return { isExpiring: true, isExpired: false, label: `Hết hạn sau ${diffDays} ngày` };
+      return { isExpiring: false, label: '' };
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-        <h2 className="text-2xl font-bold text-slate-800">Kho Hàng</h2>
-        <div className="flex flex-col md:flex-row w-full xl:w-auto gap-2">
-          
-          {/* Category Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full md:w-40 pl-10 pr-8 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none cursor-pointer text-slate-700 font-medium"
-            >
-              <option value="Tất cả">Tất cả</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.name}>{cat.name}</option>
-              ))}
-            </select>
-             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+            <h2 className="text-2xl font-bold text-slate-800">Kho Hàng</h2>
+            <div className="flex flex-col md:flex-row w-full xl:w-auto gap-2">
+            
+            {/* Category Filter */}
+            <div className="relative">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full md:w-40 pl-10 pr-8 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none cursor-pointer text-slate-700 font-medium"
+                >
+                <option value="Tất cả">Tất cả</option>
+                {categories.map(cat => (
+                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                </div>
             </div>
-          </div>
 
-          <div className="relative flex-1 md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-            <input 
-              type="text" 
-              placeholder="Tìm tên, mã SP, mã vạch..." 
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          
-          <div className="flex gap-2">
-            <button 
-                onClick={() => setIsScannerOpen(true)}
-                className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg font-medium transition-colors"
-                title="Quét mã QR để tìm kiếm"
-            >
-                <ScanLine className="h-4 w-4" />
-                <span className="hidden lg:inline">Quét Tìm</span>
-            </button>
+            <div className="relative flex-1 md:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                <input 
+                type="text" 
+                placeholder="Tìm tên, mã SP, mã vạch..." 
+                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+            
+            <div className="flex gap-2">
+                <button 
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors border ${showFilters ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                    title="Bộ lọc nâng cao"
+                >
+                    <ListFilter className="h-4 w-4" />
+                </button>
 
-            <button 
-                onClick={handleAddNew}
-                className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-                <Plus className="h-4 w-4" />
-                <span className="hidden lg:inline">Thêm mới</span>
-            </button>
-          </div>
+                <button 
+                    onClick={() => setIsScannerOpen(true)}
+                    className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg font-medium transition-colors"
+                    title="Quét mã QR để tìm kiếm"
+                >
+                    <ScanLine className="h-4 w-4" />
+                    <span className="hidden lg:inline">Quét Tìm</span>
+                </button>
+
+                <button 
+                    onClick={handleAddNew}
+                    className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden lg:inline">Thêm mới</span>
+                </button>
+            </div>
+            </div>
         </div>
+
+        {/* Advanced Filters Section */}
+        {showFilters && (
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap gap-4 items-end animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="w-full sm:w-48">
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Số Lô (Batch)</label>
+                    <input 
+                        type="text"
+                        placeholder="Nhập số lô..."
+                        value={batchFilter}
+                        onChange={(e) => setBatchFilter(e.target.value)}
+                        className="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+                    />
+                </div>
+                <div className="w-full sm:w-48">
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Ngày hết hạn</label>
+                    <input 
+                        type="date"
+                        value={expiryFilter}
+                        onChange={(e) => setExpiryFilter(e.target.value)}
+                        className="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm text-slate-600"
+                    />
+                </div>
+                {(batchFilter || expiryFilter || searchTerm || selectedCategory !== 'Tất cả') && (
+                    <button 
+                        onClick={clearFilters}
+                        className="text-sm text-red-500 hover:text-red-700 font-medium flex items-center gap-1 mb-2 px-2"
+                    >
+                        <X className="h-3 w-3" /> Xóa bộ lọc
+                    </button>
+                )}
+            </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
@@ -152,14 +239,16 @@ const Inventory: React.FC<InventoryProps> = ({ products }) => {
                 <th className="px-4 py-3">Mã SP</th>
                 <th className="px-4 py-3">Tên Sản Phẩm</th>
                 <th className="px-4 py-3">Danh Mục</th>
-                <th className="px-4 py-3 text-right">Giá Vốn</th>
                 <th className="px-4 py-3 text-right">Giá Bán</th>
                 <th className="px-4 py-3 text-center">Tồn Kho</th>
+                <th className="px-4 py-3">Lô / Hạn SD</th>
                 <th className="px-4 py-3 text-right">Thao Tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {currentItems.map((product) => (
+              {currentItems.map((product) => {
+                const status = getExpirationStatus(product.expiryDate);
+                return (
                 <tr key={product.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3 font-medium text-slate-700">
                     <div className="flex flex-col">
@@ -180,7 +269,6 @@ const Inventory: React.FC<InventoryProps> = ({ products }) => {
                         {product.category}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-500">{product.cost.toLocaleString('vi-VN')}</td>
                   <td className="px-4 py-3 text-right font-medium text-blue-600">{product.price.toLocaleString('vi-VN')}</td>
                   <td className="px-4 py-3 text-center">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -188,6 +276,18 @@ const Inventory: React.FC<InventoryProps> = ({ products }) => {
                     }`}>
                       {product.stock} {product.unit}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className={`flex flex-col text-xs ${status.isExpiring ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
+                        {product.batchNumber && <span>Lô: {product.batchNumber}</span>}
+                        {product.expiryDate && (
+                            <span className="flex items-center gap-1" title={status.label}>
+                                <Calendar className="h-3 w-3" /> 
+                                {new Date(product.expiryDate).toLocaleDateString('vi-VN')}
+                                {status.isExpiring && <AlertTriangle className="h-3 w-3 animate-pulse" />}
+                            </span>
+                        )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -207,7 +307,7 @@ const Inventory: React.FC<InventoryProps> = ({ products }) => {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
               {filteredProducts.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
@@ -480,7 +580,9 @@ const ProductModal: React.FC<{
       price: 0,
       cost: 0,
       stock: 0,
-      category: categories.length > 0 ? categories[0].name : 'Khác'
+      category: categories.length > 0 ? categories[0].name : 'Khác',
+      batchNumber: '',
+      expiryDate: ''
     }
   );
 
@@ -511,7 +613,7 @@ const ProductModal: React.FC<{
           </h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Mã SP (Nội bộ)</label>
@@ -614,6 +716,29 @@ const ProductModal: React.FC<{
             </div>
           </div>
           
+          <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+             <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Số Lô (Batch)</label>
+              <input 
+                name="batchNumber"
+                value={formData.batchNumber || ''}
+                onChange={handleChange}
+                placeholder="VD: L001"
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+              />
+            </div>
+             <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Hạn sử dụng</label>
+              <input 
+                type="date"
+                name="expiryDate"
+                value={formData.expiryDate || ''}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+              />
+            </div>
+          </div>
+
           <div className="pt-4 flex justify-end gap-3">
             <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Hủy</button>
             <button type="submit" className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg">Lưu</button>

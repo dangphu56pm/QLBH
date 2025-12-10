@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Customer, DebtTransaction, User } from '../types';
 import { payDebt, getDebtTransactions } from '../services/db';
-import { DollarSign, Search, CheckCircle, History, List, Calendar, User as UserIcon } from 'lucide-react';
+import { DollarSign, Search, CheckCircle, History, List, Calendar, User as UserIcon, Eye, X, FileText } from 'lucide-react';
 
 interface DebtProps {
   customers: Customer[];
@@ -19,6 +19,9 @@ const Debt: React.FC<DebtProps> = ({ customers, currentUser }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [historySearch, setHistorySearch] = useState('');
+  
+  // Detail Modal State
+  const [viewingTransaction, setViewingTransaction] = useState<DebtTransaction | null>(null);
 
   const loadTransactions = () => {
     setTransactions(getDebtTransactions());
@@ -198,11 +201,16 @@ const Debt: React.FC<DebtProps> = ({ customers, currentUser }) => {
                     <th className="px-4 py-3">Nhân viên</th>
                     <th className="px-4 py-3">Ghi chú</th>
                     <th className="px-4 py-3 text-right">Số tiền thu</th>
+                    <th className="px-4 py-3 text-center">Chi tiết</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredTransactions.map(t => (
-                    <tr key={t.id} className="hover:bg-slate-50">
+                    <tr 
+                        key={t.id} 
+                        className="hover:bg-slate-50 cursor-pointer transition-colors"
+                        onClick={() => setViewingTransaction(t)}
+                    >
                       <td className="px-4 py-3 text-slate-600">
                           {new Date(t.date).toLocaleString('vi-VN')}
                       </td>
@@ -214,15 +222,20 @@ const Debt: React.FC<DebtProps> = ({ customers, currentUser }) => {
                             </span>
                         ) : '-'}
                       </td>
-                      <td className="px-4 py-3 text-slate-500">{t.note || '-'}</td>
+                      <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{t.note || '-'}</td>
                       <td className="px-4 py-3 text-right font-bold text-green-600">
                         +{t.amount.toLocaleString('vi-VN')} ₫
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                          <button className="text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors">
+                              <Eye className="h-4 w-4" />
+                          </button>
                       </td>
                     </tr>
                   ))}
                   {filteredTransactions.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                      <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
                         Chưa có lịch sử giao dịch nào.
                       </td>
                     </tr>
@@ -241,6 +254,7 @@ const Debt: React.FC<DebtProps> = ({ customers, currentUser }) => {
 
       {activeTab === 'list' ? renderList() : renderHistory()}
 
+      {/* Payment Modal */}
       {selectedCustomer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-xl w-full max-w-sm shadow-2xl animate-in fade-in zoom-in duration-200">
@@ -281,8 +295,92 @@ const Debt: React.FC<DebtProps> = ({ customers, currentUser }) => {
           </div>
         </div>
       )}
+
+      {/* Transaction Detail Modal */}
+      {viewingTransaction && (
+          <DebtTransactionDetailModal 
+            transaction={viewingTransaction}
+            onClose={() => setViewingTransaction(null)}
+          />
+      )}
     </div>
   );
+};
+
+const DebtTransactionDetailModal: React.FC<{
+    transaction: DebtTransaction;
+    onClose: () => void;
+}> = ({ transaction, onClose }) => {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200">
+                <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
+                    <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-blue-600" />
+                        Chi tiết phiếu thu
+                    </h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+                        <X className="h-6 w-6" />
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-6">
+                    <div className="text-center">
+                        <p className="text-sm text-slate-500 uppercase tracking-wide">Số tiền thu</p>
+                        <p className="text-3xl font-bold text-green-600 mt-1">
+                            +{transaction.amount.toLocaleString('vi-VN')} ₫
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="p-3 bg-slate-50 rounded-lg">
+                             <span className="block text-slate-500 text-xs mb-1">Thời gian</span>
+                             <span className="font-medium text-slate-800 flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {new Date(transaction.date).toLocaleString('vi-VN')}
+                             </span>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded-lg">
+                             <span className="block text-slate-500 text-xs mb-1">Mã phiếu (System ID)</span>
+                             <span className="font-mono text-slate-600 text-xs truncate block" title={transaction.id}>
+                                #{transaction.id}
+                             </span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 border-t border-slate-100 pt-4">
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-500">Khách hàng:</span>
+                            <span className="font-bold text-slate-800 text-lg">{transaction.customerName}</span>
+                        </div>
+                         <div className="flex justify-between items-center">
+                            <span className="text-slate-500">Người thực hiện:</span>
+                            <span className="font-medium text-slate-800 flex items-center gap-1">
+                                <UserIcon className="h-4 w-4 text-slate-400" />
+                                {transaction.staffName || '---'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <h4 className="text-sm font-bold text-blue-700 mb-1 flex items-center gap-1">
+                            Ghi chú
+                        </h4>
+                        <p className="text-slate-700 text-sm italic">
+                            {transaction.note || 'Không có ghi chú.'}
+                        </p>
+                    </div>
+
+                    <button 
+                        onClick={onClose}
+                        className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
+                    >
+                        Đóng
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default Debt;
