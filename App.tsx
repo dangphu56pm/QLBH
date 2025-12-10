@@ -11,8 +11,9 @@ import UserManagement from './components/UserManagement';
 import MenuManagement from './components/MenuManagement';
 import CategoryManagement from './components/CategoryManagement';
 import StockMovement from './components/StockMovement'; // New Component
-import { getCustomers, getProducts, getOrders, getCurrentUser, getMenuConfig } from './services/db';
-import { Menu, Lock, ShieldAlert } from 'lucide-react';
+import DataSync from './components/DataSync'; // New Component
+import { getCustomers, getProducts, getOrders, getCurrentUser, getMenuConfig, getSyncConfig, exportDatabase, updateLastBackupTime } from './services/db';
+import { Menu, Lock, ShieldAlert, DownloadCloud } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -31,6 +32,26 @@ const App: React.FC = () => {
     setCustomers(getCustomers());
     setOrders(getOrders());
     setMenuConfig(getMenuConfig());
+  };
+
+  // Helper function to trigger download
+  const performAutoBackup = () => {
+    const jsonString = exportDatabase();
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    const date = new Date().toISOString().slice(0, 10);
+    const time = new Date().toISOString().slice(11, 19).replace(/:/g, '-');
+    a.download = `auto_backup_qlbh_${date}_${time}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    updateLastBackupTime();
+    console.log("Auto backup completed");
   };
 
   useEffect(() => {
@@ -60,9 +81,25 @@ const App: React.FC = () => {
     window.addEventListener('db-change', handleDbChange);
     window.addEventListener('menu-config-change', handleMenuConfigChange);
 
+    // --- AUTO BACKUP LOGIC ---
+    // Check every 1 minute
+    const backupInterval = setInterval(() => {
+      const config = getSyncConfig();
+      if (config.autoBackup) {
+        const last = new Date(config.lastBackup).getTime();
+        const now = new Date().getTime();
+        const intervalMs = config.intervalMinutes * 60 * 1000;
+        
+        if (now - last > intervalMs) {
+          performAutoBackup();
+        }
+      }
+    }, 60000); // 1 minute
+
     return () => {
       window.removeEventListener('db-change', handleDbChange);
       window.removeEventListener('menu-config-change', handleMenuConfigChange);
+      clearInterval(backupInterval);
     };
   }, []);
 
@@ -119,6 +156,8 @@ const App: React.FC = () => {
         return <Sales products={products} customers={customers} orders={orders} currentUser={currentUser} />;
       case ViewState.DEBT:
         return isAdmin ? <Debt customers={customers} currentUser={currentUser} /> : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
+      case ViewState.DATA_SYNC:
+        return isAdmin ? <DataSync /> : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
       case ViewState.USERS:
         return isAdmin ? <UserManagement /> : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
       case ViewState.MENU_MANAGEMENT:

@@ -1,4 +1,4 @@
-import { Customer, Product, Order, User, Category, ViewState, MenuConfigItem, DebtTransaction, InventoryTransaction } from '../types';
+import { Customer, Product, Order, User, Category, ViewState, MenuConfigItem, DebtTransaction, InventoryTransaction, SyncConfig } from '../types';
 
 const KEYS = {
   PRODUCTS: 'app_products',
@@ -10,6 +10,7 @@ const KEYS = {
   MENU_CONFIG: 'app_menu_config',
   DEBT_TRANSACTIONS: 'app_debt_transactions',
   INVENTORY_TRANSACTIONS: 'app_inventory_transactions',
+  SYNC_CONFIG: 'app_sync_config',
 };
 
 // Hàm helper để giả lập độ trễ mạng nếu cần (không dùng ở đây để app nhanh)
@@ -29,6 +30,7 @@ export const getMenuConfig = (): MenuConfigItem[] => {
       { id: ViewState.CATEGORIES, isVisible: true }, 
       { id: ViewState.CUSTOMERS, isVisible: true },
       { id: ViewState.DEBT, isVisible: true },
+      { id: ViewState.DATA_SYNC, isVisible: true }, // New
       { id: ViewState.USERS, isVisible: true },
     ];
     localStorage.setItem(KEYS.MENU_CONFIG, JSON.stringify(defaultOrder));
@@ -40,6 +42,30 @@ export const getMenuConfig = (): MenuConfigItem[] => {
 export const saveMenuConfig = (config: MenuConfigItem[]): void => {
   localStorage.setItem(KEYS.MENU_CONFIG, JSON.stringify(config));
   window.dispatchEvent(new Event('menu-config-change'));
+};
+
+// --- SYNC / AUTO BACKUP CONFIG ---
+export const getSyncConfig = (): SyncConfig => {
+  const data = localStorage.getItem(KEYS.SYNC_CONFIG);
+  if (!data) {
+    return {
+      autoBackup: false,
+      intervalMinutes: 60, // Mặc định 60 phút
+      lastBackup: new Date().toISOString()
+    };
+  }
+  return JSON.parse(data);
+};
+
+export const saveSyncConfig = (config: SyncConfig): void => {
+  localStorage.setItem(KEYS.SYNC_CONFIG, JSON.stringify(config));
+  // Không cần dispatch event vì logic check sẽ đọc trực tiếp từ localStorage mỗi lần chạy interval
+};
+
+export const updateLastBackupTime = (): void => {
+  const config = getSyncConfig();
+  config.lastBackup = new Date().toISOString();
+  saveSyncConfig(config);
 };
 
 // --- CATEGORIES ---
@@ -343,4 +369,47 @@ export const logout = (): void => {
 export const getCurrentUser = (): User | null => {
   const data = localStorage.getItem(KEYS.SESSION);
   return data ? JSON.parse(data) : null;
+};
+
+// --- EXPORT / IMPORT DATA ---
+
+export const exportDatabase = (): string => {
+    const data: Record<string, any> = {};
+    // Iterate over all keys (except session) and collect data
+    Object.values(KEYS).forEach(key => {
+        if (key === KEYS.SESSION) return;
+        const item = localStorage.getItem(key);
+        if (item) {
+            data[key] = JSON.parse(item);
+        }
+    });
+    // Add metadata
+    data['metadata'] = {
+        exportDate: new Date().toISOString(),
+        version: '1.0'
+    };
+    return JSON.stringify(data, null, 2);
+};
+
+export const importDatabase = (jsonString: string): { success: boolean, message: string } => {
+    try {
+        const data = JSON.parse(jsonString);
+        
+        // Basic validation
+        if (!data || typeof data !== 'object') {
+            return { success: false, message: 'File không hợp lệ' };
+        }
+
+        // Restore keys
+        Object.values(KEYS).forEach(key => {
+            if (key === KEYS.SESSION) return;
+            if (data[key]) {
+                localStorage.setItem(key, JSON.stringify(data[key]));
+            }
+        });
+
+        return { success: true, message: 'Khôi phục dữ liệu thành công!' };
+    } catch (e) {
+        return { success: false, message: 'Lỗi khi đọc file: ' + (e as Error).message };
+    }
 };

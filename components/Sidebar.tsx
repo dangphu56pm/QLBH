@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ViewState, User, MenuConfigItem } from '../types';
-import { LayoutDashboard, ShoppingCart, Users, Package, Wallet, LogOut, UserCog, Settings, Layout, FolderOpen, List, ChevronDown, ChevronRight, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Users, Package, Wallet, LogOut, UserCog, Settings, Layout, FolderOpen, List, ChevronDown, ChevronRight, ArrowDownToLine, ArrowUpFromLine, Database } from 'lucide-react';
 import { logout, getMenuConfig } from '../services/db';
 
 interface SidebarProps {
@@ -21,6 +21,7 @@ const MENU_META: Record<string, { label: string, icon: any, protected: boolean }
     [ViewState.EXPORT_STOCK]: { label: 'Xuất kho', icon: ArrowUpFromLine, protected: false }, // Child
     [ViewState.CUSTOMERS]: { label: 'Khách hàng', icon: Users, protected: false },
     [ViewState.DEBT]: { label: 'Công nợ', icon: Wallet, protected: true },
+    [ViewState.DATA_SYNC]: { label: 'Dữ liệu', icon: Database, protected: true },
     [ViewState.USERS]: { label: 'Nhân viên', icon: UserCog, protected: true },
 };
 
@@ -242,7 +243,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, se
                 <LogOut className="mr-3 h-5 w-5" />
                 <span className="font-medium">Đăng xuất</span>
             </button>
-            <p className="text-xs text-slate-600 text-center mt-2">v1.4.0 - Local Mode</p>
+            <p className="text-xs text-slate-600 text-center mt-2">v1.5.0 - Local Mode</p>
         </div>
       </aside>
     </>

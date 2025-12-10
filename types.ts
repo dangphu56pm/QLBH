@@ -102,10 +102,17 @@ export enum ViewState {
   DEBT = 'DEBT',
   USERS = 'USERS', // View quản lý nhân viên
   MENU_MANAGEMENT = 'MENU_MANAGEMENT', // View quản lý menu
+  DATA_SYNC = 'DATA_SYNC', // View quản lý dữ liệu (New)
 }
 
 export interface MenuConfigItem {
   id: ViewState;
   isVisible: boolean;
   customLabel?: string; // Cho phép đổi tên hiển thị (optional)
+}
+
+export interface SyncConfig {
+  autoBackup: boolean;
+  intervalMinutes: number; // Tần suất backup (phút)
+  lastBackup: string; // Thời điểm backup gần nhất (ISO String)
 }

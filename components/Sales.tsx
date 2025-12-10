@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Customer, Product, OrderItem, Order, User } from '../types';
 import { createOrder, saveCustomer, deleteOrder } from '../services/db';
-import { Search, ShoppingCart, Trash2, Plus, Minus, UserCheck, CheckCircle, X, User as UserIcon, ScanLine, Printer, ArrowRight, History, ListPlus, FileText, Calendar, UserPlus, Wallet, CreditCard, Eye, MapPin, Phone, AlertTriangle } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, UserCheck, CheckCircle, X, User as UserIcon, ScanLine, Printer, ArrowRight, History, ListPlus, FileText, Calendar, UserPlus, Wallet, CreditCard, Eye, MapPin, Phone, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface SalesProps {
   products: Product[];
@@ -38,6 +38,10 @@ const Sales: React.FC<SalesProps> = ({ products, customers, orders, currentUser 
   const [historySearch, setHistorySearch] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   // --- Order Detail State ---
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
@@ -94,6 +98,17 @@ const Sales: React.FC<SalesProps> = ({ products, customers, orders, currentUser 
     // Sort newest first
     return result.reverse();
   }, [orders, historySearch, startDate, endDate]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [historySearch, startDate, endDate]);
+
+  // Pagination Logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentOrders = filteredOrders.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
 
   // Calculated Totals
   const subTotal = cart.reduce((sum, item) => sum + item.total, 0);
@@ -432,7 +447,7 @@ const Sales: React.FC<SalesProps> = ({ products, customers, orders, currentUser 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredOrders.map(order => {
+              {currentOrders.map(order => {
                 const displayTotal = order.finalAmount ?? order.totalAmount;
                 return (
                 <tr 
@@ -500,6 +515,50 @@ const Sales: React.FC<SalesProps> = ({ products, customers, orders, currentUser 
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {filteredOrders.length > 0 && (
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
+                <div className="flex items-center gap-2 text-slate-600">
+                    <span>Hiển thị</span>
+                    <select 
+                        value={itemsPerPage} 
+                        onChange={(e) => {
+                            setItemsPerPage(Number(e.target.value));
+                            setCurrentPage(1);
+                        }}
+                        className="border border-slate-300 rounded p-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                    </select>
+                    <span>dòng / trang</span>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                    <span className="text-slate-500">
+                        {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredOrders.length)} trên {filteredOrders.length}
+                    </span>
+                    <div className="flex gap-1">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="p-1 rounded border border-slate-300 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors"
+                        >
+                            <ChevronLeft className="h-5 w-5 text-slate-600" />
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className="p-1 rounded border border-slate-300 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors"
+                        >
+                            <ChevronRight className="h-5 w-5 text-slate-600" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
       </div>
 
       {/* Delete Order Confirmation Modal */}

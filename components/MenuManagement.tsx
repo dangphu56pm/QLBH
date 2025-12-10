@@ -8,8 +8,11 @@ const VIEW_LABELS: Record<string, string> = {
   [ViewState.SALES]: 'Bán hàng',
   [ViewState.INVENTORY]: 'Kho hàng (Sản phẩm)',
   [ViewState.CATEGORIES]: 'Quản lý danh mục',
+  [ViewState.IMPORT_STOCK]: 'Nhập kho',
+  [ViewState.EXPORT_STOCK]: 'Xuất kho',
   [ViewState.CUSTOMERS]: 'Khách hàng',
   [ViewState.DEBT]: 'Công nợ',
+  [ViewState.DATA_SYNC]: 'Dữ liệu & Đồng bộ',
   [ViewState.USERS]: 'Nhân viên',
 };
 
@@ -137,9 +140,11 @@ const MenuManagement: React.FC = () => {
       
       <div className="bg-blue-50 p-4 rounded-xl text-sm text-blue-700 border border-blue-100">
         <p className="font-bold mb-1">Lưu ý:</p>
-        <ul className="list-disc list-inside space-y-1">
-            <li>Vị trí trên cùng sẽ là trang mặc định khi đăng nhập.</li>
-            <li>Các mục bị ẩn sẽ không hiển thị trên thanh menu, tuy nhiên quyền truy cập vẫn được giữ nguyên.</li>
+        <ul className="list-disc list-inside space-y-1 ml-2">
+            <li>Các mục bị ẩn sẽ không hiển thị trên thanh bên trái.</li>
+            <li>Admin vẫn có thể truy cập tất cả các mục (trừ khi bị ẩn hoàn toàn trong code).</li>
+            <li>Nhân viên (Staff) chỉ thấy các mục không được đánh dấu là "Protected" trong code.</li>
+            <li>Thứ tự sắp xếp ở đây sẽ quyết định thứ tự hiển thị trên menu.</li>
         </ul>
       </div>
     </div>
