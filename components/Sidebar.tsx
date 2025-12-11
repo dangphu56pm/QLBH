@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ViewState, User, MenuConfigItem } from '../types';
-import { LayoutDashboard, ShoppingCart, Users, Package, Wallet, LogOut, UserCog, Settings, Layout, FolderOpen, List, ChevronDown, ChevronRight, ArrowDownToLine, ArrowUpFromLine, Database, Clock } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Users, Package, Wallet, LogOut, UserCog, Settings, Layout, FolderOpen, List, ChevronDown, ChevronRight, ArrowDownToLine, ArrowUpFromLine, Database, Clock, BarChart3, Scale } from 'lucide-react';
 import { logout, getMenuConfig } from '../services/db';
 
 interface SidebarProps {
@@ -15,8 +15,10 @@ interface SidebarProps {
 const MENU_META: Record<string, { label: string, icon: any, protected: boolean }> = {
     [ViewState.DASHBOARD]: { label: 'Tổng quan', icon: LayoutDashboard, protected: true },
     [ViewState.SALES]: { label: 'Bán hàng', icon: ShoppingCart, protected: false },
+    [ViewState.REPORTS]: { label: 'Báo cáo', icon: BarChart3, protected: true }, // New
     [ViewState.INVENTORY]: { label: 'Kho hàng', icon: Package, protected: false }, // Parent Concept
     [ViewState.CATEGORIES]: { label: 'Danh mục', icon: FolderOpen, protected: false }, // Child
+    [ViewState.UNITS]: { label: 'Đơn vị tính', icon: Scale, protected: false }, // Child
     [ViewState.IMPORT_STOCK]: { label: 'Nhập kho', icon: ArrowDownToLine, protected: false }, // Child
     [ViewState.EXPORT_STOCK]: { label: 'Xuất kho', icon: ArrowUpFromLine, protected: false }, // Child
     [ViewState.CUSTOMERS]: { label: 'Khách hàng', icon: Users, protected: false },
@@ -52,6 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, se
 
   // Check visibility for sub-menus
   const isCategoryVisible = menuConfig.find(m => m.id === ViewState.CATEGORIES)?.isVisible;
+  const isUnitVisible = menuConfig.find(m => m.id === ViewState.UNITS)?.isVisible;
   const isImportVisible = menuConfig.find(m => m.id === ViewState.IMPORT_STOCK)?.isVisible;
   const isExportVisible = menuConfig.find(m => m.id === ViewState.EXPORT_STOCK)?.isVisible;
 
@@ -96,7 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, se
             if (!configItem.isVisible) return null;
             
             // Skip rendering children here because they are rendered inside INVENTORY
-            if ([ViewState.CATEGORIES, ViewState.IMPORT_STOCK, ViewState.EXPORT_STOCK].includes(configItem.id as ViewState)) return null;
+            if ([ViewState.CATEGORIES, ViewState.UNITS, ViewState.IMPORT_STOCK, ViewState.EXPORT_STOCK].includes(configItem.id as ViewState)) return null;
 
             // Check permissions
             const meta = MENU_META[configItem.id];
@@ -107,7 +110,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, se
             if (configItem.id === ViewState.INVENTORY) {
                 const isActiveParent = [
                     ViewState.INVENTORY, 
-                    ViewState.CATEGORIES, 
+                    ViewState.CATEGORIES,
+                    ViewState.UNITS,
                     ViewState.IMPORT_STOCK, 
                     ViewState.EXPORT_STOCK
                 ].includes(currentView);
@@ -198,6 +202,24 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, se
                                         <span>Danh mục</span>
                                     </button>
                                 )}
+
+                                {/* Units Sub-item (Only if visible in config) */}
+                                {isUnitVisible && (
+                                    <button
+                                        onClick={() => {
+                                            onChangeView(ViewState.UNITS);
+                                            setIsOpen(false);
+                                        }}
+                                        className={`w-full flex items-center pl-12 pr-4 py-2 rounded-lg text-sm transition-colors ${
+                                            currentView === ViewState.UNITS
+                                            ? 'bg-blue-600 text-white'
+                                            : 'text-slate-400 hover:text-white'
+                                        }`}
+                                    >
+                                        <Scale className="mr-3 h-4 w-4" />
+                                        <span>Đơn vị tính</span>
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -264,7 +286,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, se
                 <LogOut className="mr-3 h-5 w-5" />
                 <span className="font-medium">Đăng xuất</span>
             </button>
-            <p className="text-xs text-slate-600 text-center mt-2">v1.5.0 - Local Mode</p>
+            <p className="text-xs text-slate-600 text-center mt-2">v1.7.0 - Unit Mgmt</p>
         </div>
       </aside>
     </>

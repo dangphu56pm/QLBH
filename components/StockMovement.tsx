@@ -156,7 +156,7 @@ const StockMovement: React.FC<StockMovementProps> = ({ products, currentUser, mo
   };
   
   const updateBatchInfo = (productId: string, field: 'batchNumber' | 'expiryDate', value: string) => {
-      if (!isImport) return; // Chỉ cho phép sửa khi nhập kho
+      // Cho phép sửa cả khi nhập (set thông tin mới) và xuất (xác định lô xuất)
       setCart(prev => prev.map(item => 
           item.productId === productId ? { ...item, [field]: value } : item
       ));
@@ -404,29 +404,27 @@ const StockMovement: React.FC<StockMovementProps> = ({ products, currentUser, mo
                                         )}
                                     </div>
 
-                                    {/* Batch & Expiry Input (Only Import) */}
-                                    {isImport && (
-                                        <div className="flex flex-wrap gap-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-slate-500 w-16">Số Lô:</span>
-                                                <input 
-                                                    className="w-32 p-1 px-2 text-sm border rounded focus:ring-1 focus:ring-blue-500 outline-none"
-                                                    value={item.batchNumber || ''}
-                                                    placeholder="VD: L001"
-                                                    onChange={(e) => updateBatchInfo(item.productId, 'batchNumber', e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-slate-500">Hạn SD:</span>
-                                                <input 
-                                                    type="date"
-                                                    className="w-32 p-1 px-2 text-sm border rounded focus:ring-1 focus:ring-blue-500 outline-none"
-                                                    value={item.expiryDate || ''}
-                                                    onChange={(e) => updateBatchInfo(item.productId, 'expiryDate', e.target.value)}
-                                                />
-                                            </div>
+                                    {/* Batch & Expiry Input (For Both Import and Export) */}
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-slate-500 w-16">{isImport ? 'Số Lô:' : 'Lô xuất:'}</span>
+                                            <input 
+                                                className="w-32 p-1 px-2 text-sm border rounded focus:ring-1 focus:ring-blue-500 outline-none"
+                                                value={item.batchNumber || ''}
+                                                placeholder="VD: L001"
+                                                onChange={(e) => updateBatchInfo(item.productId, 'batchNumber', e.target.value)}
+                                            />
                                         </div>
-                                    )}
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-slate-500">Hạn SD:</span>
+                                            <input 
+                                                type="date"
+                                                className="w-32 p-1 px-2 text-sm border rounded focus:ring-1 focus:ring-blue-500 outline-none"
+                                                value={item.expiryDate || ''}
+                                                onChange={(e) => updateBatchInfo(item.productId, 'expiryDate', e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-3 self-start sm:self-center">
                                     <div className="flex items-center gap-1">

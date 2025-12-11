@@ -6,8 +6,10 @@ import { ArrowUp, ArrowDown, Save, RotateCcw, Layout, Eye, EyeOff } from 'lucide
 const VIEW_LABELS: Record<string, string> = {
   [ViewState.DASHBOARD]: 'Tổng quan',
   [ViewState.SALES]: 'Bán hàng',
+  [ViewState.REPORTS]: 'Báo cáo doanh thu',
   [ViewState.INVENTORY]: 'Kho hàng (Sản phẩm)',
   [ViewState.CATEGORIES]: 'Quản lý danh mục',
+  [ViewState.UNITS]: 'Quản lý đơn vị tính',
   [ViewState.IMPORT_STOCK]: 'Nhập kho',
   [ViewState.EXPORT_STOCK]: 'Xuất kho',
   [ViewState.CUSTOMERS]: 'Khách hàng',

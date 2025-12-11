@@ -5,11 +5,13 @@ import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
 import Customers from './components/Customers';
 import Sales from './components/Sales';
+import Reports from './components/Reports'; // New Component
 import Debt from './components/Debt';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import MenuManagement from './components/MenuManagement';
 import CategoryManagement from './components/CategoryManagement';
+import UnitManagement from './components/UnitManagement'; // New Component
 import StockMovement from './components/StockMovement'; // New Component
 import DataSync from './components/DataSync'; // New Component
 import { getCustomers, getProducts, getOrders, getCurrentUser, getMenuConfig, getSyncConfig, exportDatabase, updateLastBackupTime } from './services/db';
@@ -220,10 +222,14 @@ const App: React.FC = () => {
         return <StockMovement products={products} currentUser={currentUser} mode="export" />;
       case ViewState.CATEGORIES:
         return <CategoryManagement />;
+      case ViewState.UNITS: // Added
+        return <UnitManagement />;
       case ViewState.CUSTOMERS:
         return <Customers customers={customers} />;
       case ViewState.SALES:
         return <Sales products={products} customers={customers} orders={orders} currentUser={currentUser} />;
+      case ViewState.REPORTS: 
+        return isAdmin ? <Reports orders={orders} products={products} /> : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
       case ViewState.DEBT:
         return isAdmin ? <Debt customers={customers} currentUser={currentUser} /> : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
       case ViewState.DATA_SYNC:

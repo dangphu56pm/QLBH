@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Customer, Order, Product, ViewState } from '../types';
 import { getSyncConfig } from '../services/db';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { TrendingUp, AlertCircle, DollarSign, Users, Package, ArrowRight, AlertTriangle, Calendar } from 'lucide-react';
+import { TrendingUp, AlertCircle, DollarSign, Users, Package, ArrowRight, AlertTriangle, Calendar, Wallet } from 'lucide-react';
 
 interface DashboardProps {
   products: Product[];
@@ -49,6 +49,13 @@ const Dashboard: React.FC<DashboardProps> = ({ products, customers, orders, onNa
       }).sort((a, b) => new Date(a.expiryDate!).getTime() - new Date(b.expiryDate!).getTime());
   }, [products, expiryAlertDays]);
 
+  const highDebtCustomers = useMemo(() => {
+    return customers
+      .filter(c => c.debt > 0)
+      .sort((a, b) => b.debt - a.debt)
+      .slice(0, 5);
+  }, [customers]);
+
   const chartData = useMemo(() => {
     // Group orders by date (last 7 days simplified)
     const data: Record<string, number> = {};
@@ -85,7 +92,10 @@ const Dashboard: React.FC<DashboardProps> = ({ products, customers, orders, onNa
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+        <div 
+          onClick={() => onNavigate(ViewState.DEBT)}
+          className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition-shadow"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">Tổng công nợ</p>
@@ -150,7 +160,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, customers, orders, onNa
           </div>
         </div>
 
-        {/* Right Column: Low Stock Alerts, Expiry Alerts & Recent Orders */}
+        {/* Right Column: Low Stock Alerts, Expiry Alerts, Debt & Recent Orders */}
         <div className="space-y-6">
             
             {/* Low Stock List */}
@@ -218,6 +228,36 @@ const Dashboard: React.FC<DashboardProps> = ({ products, customers, orders, onNa
                         className="w-full py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg flex items-center justify-center gap-1 transition-colors"
                     >
                         Kiểm tra kho <ArrowRight className="h-4 w-4" />
+                    </button>
+                </div>
+            )}
+
+            {/* High Debt Customers */}
+            {highDebtCustomers.length > 0 && (
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 animate-in fade-in duration-300">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4">
+                        <Wallet className="h-5 w-5 text-orange-600" /> Khách nợ cao
+                    </h3>
+                    <div className="space-y-3 mb-4">
+                        {highDebtCustomers.map(c => (
+                            <div key={c.id} className="flex items-center justify-between border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+                                <div className="overflow-hidden">
+                                    <p className="font-medium text-slate-800 text-sm truncate max-w-[150px]">{c.name}</p>
+                                    <p className="text-xs text-slate-500">{c.phone}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-bold text-red-600 text-sm">
+                                        {c.debt.toLocaleString('vi-VN')} ₫
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <button 
+                        onClick={() => onNavigate(ViewState.DEBT)}
+                        className="w-full py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg flex items-center justify-center gap-1 transition-colors"
+                    >
+                        Quản lý công nợ <ArrowRight className="h-4 w-4" />
                     </button>
                 </div>
             )}

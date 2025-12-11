@@ -17,6 +17,11 @@ export interface Category {
   name: string;
 }
 
+export interface Unit {
+  id: string;
+  name: string;
+}
+
 export interface Customer {
   id: string;
   name: string;
@@ -24,7 +29,9 @@ export interface Customer {
   address: string;
   debt: number;
   gender?: string; // Nam, Nữ, Khác
-  age?: number;
+  age?: number; // Tuổi (Năm)
+  monthAge?: number; // Tháng tuổi
+  parentsName?: string; // Thông tin bố mẹ
   weight?: number; // kg
 }
 
@@ -59,6 +66,8 @@ export interface DebtTransaction {
   date: string; // ISO String
   note?: string;
   staffName?: string; // Người thu nợ
+  type?: 'payment' | 'order' | 'rollback'; // Loại giao dịch: Thu nợ | Từ đơn hàng | Hoàn tác đơn
+  orderId?: string; // ID đơn hàng liên quan (nếu có)
 }
 
 // --- INVENTORY TRANSACTIONS ---
@@ -100,13 +109,15 @@ export enum ViewState {
   INVENTORY = 'INVENTORY',     // Danh sách sản phẩm
   IMPORT_STOCK = 'IMPORT_STOCK', // Nhập kho
   EXPORT_STOCK = 'EXPORT_STOCK', // Xuất kho
-  CATEGORIES = 'CATEGORIES',   // Quản lý danh mục (New)
+  CATEGORIES = 'CATEGORIES',   // Quản lý danh mục
+  UNITS = 'UNITS',             // Quản lý đơn vị tính (New)
   CUSTOMERS = 'CUSTOMERS',
   SALES = 'SALES',
+  REPORTS = 'REPORTS',
   DEBT = 'DEBT',
   USERS = 'USERS', // View quản lý nhân viên
   MENU_MANAGEMENT = 'MENU_MANAGEMENT', // View quản lý menu
-  DATA_SYNC = 'DATA_SYNC', // View quản lý dữ liệu (New)
+  DATA_SYNC = 'DATA_SYNC', // View quản lý dữ liệu
 }
 
 export interface MenuConfigItem {

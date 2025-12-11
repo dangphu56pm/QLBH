@@ -1,4 +1,4 @@
-import { Customer, Product, Order, User, Category, ViewState, MenuConfigItem, DebtTransaction, InventoryTransaction, SyncConfig } from '../types';
+import { Customer, Product, Order, User, Category, Unit, ViewState, MenuConfigItem, DebtTransaction, InventoryTransaction, SyncConfig } from '../types';
 
 const KEYS = {
   PRODUCTS: 'app_products',
@@ -6,6 +6,7 @@ const KEYS = {
   ORDERS: 'app_orders',
   USERS: 'app_users',
   CATEGORIES: 'app_categories',
+  UNITS: 'app_units',
   SESSION: 'app_session',
   MENU_CONFIG: 'app_menu_config',
   DEBT_TRANSACTIONS: 'app_debt_transactions',
@@ -24,13 +25,15 @@ export const getMenuConfig = (): MenuConfigItem[] => {
     const defaultOrder: MenuConfigItem[] = [
       { id: ViewState.DASHBOARD, isVisible: true },
       { id: ViewState.SALES, isVisible: true },
+      { id: ViewState.REPORTS, isVisible: true }, 
       { id: ViewState.INVENTORY, isVisible: true },
-      { id: ViewState.IMPORT_STOCK, isVisible: true }, // Added
-      { id: ViewState.EXPORT_STOCK, isVisible: true }, // Added
+      { id: ViewState.IMPORT_STOCK, isVisible: true }, 
+      { id: ViewState.EXPORT_STOCK, isVisible: true }, 
       { id: ViewState.CATEGORIES, isVisible: true }, 
+      { id: ViewState.UNITS, isVisible: true }, // Added Units
       { id: ViewState.CUSTOMERS, isVisible: true },
       { id: ViewState.DEBT, isVisible: true },
-      { id: ViewState.DATA_SYNC, isVisible: true }, // New
+      { id: ViewState.DATA_SYNC, isVisible: true }, 
       { id: ViewState.USERS, isVisible: true },
     ];
     localStorage.setItem(KEYS.MENU_CONFIG, JSON.stringify(defaultOrder));
@@ -116,15 +119,52 @@ export const deleteCategory = (id: string): void => {
   window.dispatchEvent(new Event('category-change'));
 };
 
+// --- UNITS (NEW) ---
+export const getUnits = (): Unit[] => {
+  const data = localStorage.getItem(KEYS.UNITS);
+  if (!data) {
+    const seed: Unit[] = [
+      { id: '1', name: 'Cái' },
+      { id: '2', name: 'Hộp' },
+      { id: '3', name: 'Thùng' },
+      { id: '4', name: 'Chai' },
+      { id: '5', name: 'Lốc' },
+      { id: '6', name: 'Kg' },
+      { id: '7', name: 'Gói' },
+    ];
+    localStorage.setItem(KEYS.UNITS, JSON.stringify(seed));
+    return seed;
+  }
+  return JSON.parse(data);
+};
+
+export const saveUnit = (unit: Unit): void => {
+  const units = getUnits();
+  const index = units.findIndex(u => u.id === unit.id);
+  if (index >= 0) {
+    units[index] = unit;
+  } else {
+    units.push({ ...unit, id: unit.id || generateId() });
+  }
+  localStorage.setItem(KEYS.UNITS, JSON.stringify(units));
+  window.dispatchEvent(new Event('unit-change'));
+};
+
+export const deleteUnit = (id: string): void => {
+  const units = getUnits().filter(u => u.id !== id);
+  localStorage.setItem(KEYS.UNITS, JSON.stringify(units));
+  window.dispatchEvent(new Event('unit-change'));
+};
+
 // --- PRODUCTS ---
 export const getProducts = (): Product[] => {
   const data = localStorage.getItem(KEYS.PRODUCTS);
   if (!data) {
     // Seed data
     const seed: Product[] = [
-      { id: '1', code: 'SP001', name: 'Gạo ST25', unit: 'kg', price: 35000, cost: 28000, stock: 100, category: 'Lương thực', batchNumber: 'L001', expiryDate: '2025-12-31' },
-      { id: '2', code: 'SP002', name: 'Nước mắm Nam Ngư', unit: 'chai', price: 42000, cost: 35000, stock: 50, category: 'Gia vị', batchNumber: 'L002', expiryDate: '2024-10-20' },
-      { id: '3', code: 'SP003', name: 'Mì Hảo Hảo', unit: 'thùng', price: 115000, cost: 105000, stock: 200, category: 'Lương thực' },
+      { id: '1', code: 'SP001', name: 'Gạo ST25', unit: 'Kg', price: 35000, cost: 28000, stock: 100, category: 'Lương thực', batchNumber: 'L001', expiryDate: '2025-12-31' },
+      { id: '2', code: 'SP002', name: 'Nước mắm Nam Ngư', unit: 'Chai', price: 42000, cost: 35000, stock: 50, category: 'Gia vị', batchNumber: 'L002', expiryDate: '2024-10-20' },
+      { id: '3', code: 'SP003', name: 'Mì Hảo Hảo', unit: 'Thùng', price: 115000, cost: 105000, stock: 200, category: 'Lương thực' },
     ];
     localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(seed));
     return seed;
@@ -234,6 +274,18 @@ export const updateCustomerDebt = (customerId: string, amountChange: number): vo
   }
 };
 
+// --- DEBT TRANSACTIONS (NEW) ---
+export const getDebtTransactions = (): DebtTransaction[] => {
+  const data = localStorage.getItem(KEYS.DEBT_TRANSACTIONS);
+  return data ? JSON.parse(data) : [];
+};
+
+const createDebtTransaction = (trans: DebtTransaction): void => {
+    const transactions = getDebtTransactions();
+    transactions.push(trans);
+    localStorage.setItem(KEYS.DEBT_TRANSACTIONS, JSON.stringify(transactions));
+}
+
 // --- ORDERS ---
 export const getOrders = (): Order[] => {
   const data = localStorage.getItem(KEYS.ORDERS);
@@ -259,6 +311,19 @@ export const createOrder = (order: Omit<Order, 'id'>): void => {
   // Update Customer Debt if any
   if (newOrder.debtAmount > 0) {
     updateCustomerDebt(newOrder.customerId, newOrder.debtAmount);
+    
+    // Log Debt Transaction (Order creation)
+    createDebtTransaction({
+        id: generateId(),
+        customerId: newOrder.customerId,
+        customerName: newOrder.customerName,
+        amount: newOrder.debtAmount,
+        date: new Date().toISOString(),
+        note: `Nợ từ đơn hàng #${newOrder.id}`,
+        staffName: newOrder.staffName,
+        type: 'order',
+        orderId: newOrder.id
+    });
   } else {
       // Just trigger event since updateCustomerDebt already triggers it
       window.dispatchEvent(new Event('db-change'));
@@ -286,6 +351,19 @@ export const deleteOrder = (id: string): void => {
   if (orderToDelete.debtAmount > 0) {
     // Lưu ý: updateCustomerDebt cộng thêm giá trị, nên để trừ nợ ta truyền số âm
     updateCustomerDebt(orderToDelete.customerId, -orderToDelete.debtAmount);
+    
+    // Log Debt Transaction (Rollback)
+    createDebtTransaction({
+        id: generateId(),
+        customerId: orderToDelete.customerId,
+        customerName: orderToDelete.customerName,
+        amount: orderToDelete.debtAmount, // Số tiền được hoàn lại
+        date: new Date().toISOString(),
+        note: `Hủy đơn hàng #${orderToDelete.id}`,
+        staffName: orderToDelete.staffName || 'System',
+        type: 'rollback',
+        orderId: orderToDelete.id
+    });
   }
 
   // 3. Xóa đơn hàng khỏi danh sách
@@ -296,34 +374,53 @@ export const deleteOrder = (id: string): void => {
   window.dispatchEvent(new Event('db-change'));
 };
 
-// --- DEBT TRANSACTIONS (NEW) ---
-export const getDebtTransactions = (): DebtTransaction[] => {
-  const data = localStorage.getItem(KEYS.DEBT_TRANSACTIONS);
-  return data ? JSON.parse(data) : [];
-};
 
 // --- PAYMENT FOR DEBT ---
 export const payDebt = (customerId: string, amount: number, staffName: string): void => {
     const customers = getCustomers();
     const customer = customers.find(c => c.id === customerId);
     
-    // 1. Update Debt Balance
+    // 1. Update Customer Debt Balance (Global)
     updateCustomerDebt(customerId, -amount);
     
-    // 2. Log Transaction
+    // 2. Update specific orders (FIFO - First In First Out)
+    // Find all orders for this customer that have debt > 0
+    const allOrders = getOrders();
+    const customerOrders = allOrders
+        .filter(o => o.customerId === customerId && o.debtAmount > 0 && o.status !== 'cancelled');
+    
+    // Sort oldest first
+    customerOrders.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    let remainingPayment = amount;
+    
+    for (const order of customerOrders) {
+        if (remainingPayment <= 0) break;
+
+        const amountToPayForThisOrder = Math.min(order.debtAmount, remainingPayment);
+        
+        // Update Order
+        order.debtAmount -= amountToPayForThisOrder;
+        order.paidAmount += amountToPayForThisOrder;
+        
+        remainingPayment -= amountToPayForThisOrder;
+    }
+    
+    // Save updated orders back to storage
+    localStorage.setItem(KEYS.ORDERS, JSON.stringify(allOrders));
+
+    // 3. Log Transaction
     if (customer) {
-        const transactions = getDebtTransactions();
-        const newTransaction: DebtTransaction = {
+        createDebtTransaction({
             id: generateId(),
             customerId: customerId,
             customerName: customer.name,
             amount: amount,
             date: new Date().toISOString(),
             note: 'Thu nợ khách hàng',
-            staffName: staffName
-        };
-        transactions.push(newTransaction);
-        localStorage.setItem(KEYS.DEBT_TRANSACTIONS, JSON.stringify(transactions));
+            staffName: staffName,
+            type: 'payment'
+        });
     }
 
     window.dispatchEvent(new Event('db-change'));

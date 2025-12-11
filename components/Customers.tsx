@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Customer } from '../types';
 import { saveCustomer, deleteCustomer } from '../services/db';
-import { Plus, Search, Edit2, Phone, MapPin, User, Calendar, Database, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Edit2, Phone, MapPin, User, Calendar, Database, Trash2, AlertTriangle, Users } from 'lucide-react';
 
 interface CustomersProps {
   customers: Customer[];
@@ -17,7 +17,8 @@ const Customers: React.FC<CustomersProps> = ({ customers }) => {
 
   const filteredCustomers = customers.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.phone.includes(searchTerm)
+    c.phone.includes(searchTerm) ||
+    (c.parentsName && c.parentsName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleEdit = (customer: Customer) => {
@@ -50,7 +51,7 @@ const Customers: React.FC<CustomersProps> = ({ customers }) => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
             <input 
               type="text" 
-              placeholder="Tìm tên hoặc SĐT..." 
+              placeholder="Tìm tên, SĐT, bố mẹ..." 
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -87,6 +88,12 @@ const Customers: React.FC<CustomersProps> = ({ customers }) => {
             <h3 className="font-bold text-slate-800 text-lg mb-1">{customer.name}</h3>
             
             <div className="space-y-2 text-sm text-slate-600 mt-3">
+              {customer.parentsName && (
+                <div className="flex items-center gap-2 text-blue-600 font-medium">
+                  <Users className="h-4 w-4" />
+                  <span>Bố/Mẹ: {customer.parentsName}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-slate-400" />
                 <span>{customer.phone || 'Chưa có SĐT'}</span>
@@ -97,14 +104,19 @@ const Customers: React.FC<CustomersProps> = ({ customers }) => {
               </div>
               
               {/* Thông tin bổ sung */}
-              <div className="flex items-center gap-4 pt-2 text-xs font-medium text-slate-500">
+              <div className="flex flex-wrap items-center gap-2 pt-2 text-xs font-medium text-slate-500">
                 <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded">
                   <User className="h-3 w-3" />
                   <span>{customer.gender || '---'}</span>
                 </div>
                 <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded">
                   <Calendar className="h-3 w-3" />
-                  <span>{customer.age ? `${customer.age} tuổi` : '---'}</span>
+                  <span>
+                    {customer.age ? `${customer.age} tuổi` : ''} 
+                    {customer.age && customer.monthAge ? ' - ' : ''}
+                    {customer.monthAge ? `${customer.monthAge} tháng` : ''}
+                    {!customer.age && !customer.monthAge ? '---' : ''}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded">
                   <span className="text-[10px] font-bold">KG</span>
@@ -187,6 +199,8 @@ const CustomerModal: React.FC<{
         ...customer,
         gender: customer.gender || 'Nam',
         age: customer.age,
+        monthAge: customer.monthAge,
+        parentsName: customer.parentsName,
         weight: customer.weight
       };
     }
@@ -194,8 +208,10 @@ const CustomerModal: React.FC<{
       name: '',
       phone: '',
       address: '',
+      parentsName: '',
       gender: 'Nam',
       age: undefined,
+      monthAge: undefined,
       weight: undefined,
       debt: 0
     };
@@ -228,8 +244,20 @@ const CustomerModal: React.FC<{
               <label className="block text-sm font-medium text-slate-700 mb-1">Tên khách hàng</label>
               <input 
                 required
-                value={formData.name}
+                value={formData.name || ''}
                 onChange={(e) => handleChange('name', e.target.value)}
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+              />
+            </div>
+
+            <div className="col-span-1 md:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
+                <Users className="h-4 w-4" /> Thông tin Bố / Mẹ
+              </label>
+              <input 
+                value={formData.parentsName || ''}
+                onChange={(e) => handleChange('parentsName', e.target.value)}
+                placeholder="VD: Mẹ Lan, Bố Tuấn..."
                 className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
               />
             </div>
@@ -237,7 +265,7 @@ const CustomerModal: React.FC<{
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Số điện thoại</label>
               <input 
-                value={formData.phone}
+                value={formData.phone || ''}
                 onChange={(e) => handleChange('phone', e.target.value)}
                 className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
               />
@@ -246,15 +274,15 @@ const CustomerModal: React.FC<{
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Địa chỉ</label>
               <input 
-                value={formData.address}
+                value={formData.address || ''}
                 onChange={(e) => handleChange('address', e.target.value)}
                 className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 pt-2">
-            <div>
+          <div className="grid grid-cols-4 gap-4 pt-2">
+            <div className="col-span-2 sm:col-span-1">
               <label className="block text-sm font-medium text-slate-700 mb-1">Giới tính</label>
               <select
                 value={formData.gender || 'Nam'}
@@ -266,8 +294,8 @@ const CustomerModal: React.FC<{
                 <option value="Khác">Khác</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Tuổi</label>
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Tuổi (Năm)</label>
               <input 
                 type="number"
                 min="0"
@@ -276,8 +304,18 @@ const CustomerModal: React.FC<{
                 className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Cân nặng (kg)</label>
+             <div className="col-span-2 sm:col-span-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Tháng tuổi</label>
+              <input 
+                type="number"
+                min="0"
+                value={formData.monthAge || ''}
+                onChange={(e) => handleChange('monthAge', e.target.value ? parseInt(e.target.value) : undefined)}
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+              />
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nặng (kg)</label>
               <input 
                 type="number"
                 min="0"

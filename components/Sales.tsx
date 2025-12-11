@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Customer, Product, OrderItem, Order, User } from '../types';
 import { createOrder, saveCustomer, deleteOrder } from '../services/db';
-import { Search, ShoppingCart, Trash2, Plus, Minus, UserCheck, CheckCircle, X, User as UserIcon, ScanLine, Printer, ArrowRight, History, ListPlus, FileText, Calendar, UserPlus, Wallet, CreditCard, Eye, MapPin, Phone, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, UserCheck, CheckCircle, X, User as UserIcon, ScanLine, Printer, ArrowRight, History, ListPlus, FileText, Calendar, UserPlus, Wallet, CreditCard, Eye, MapPin, Phone, AlertTriangle, ChevronLeft, ChevronRight, Calculator, Tag, BadgePercent } from 'lucide-react';
 
 interface SalesProps {
   products: Product[];
@@ -148,6 +148,17 @@ const Sales: React.FC<SalesProps> = ({ products, customers, orders, currentUser 
             return item;
         }
         return { ...item, quantity: newQty, total: newQty * item.price };
+      }
+      return item;
+    }));
+  };
+
+  const updatePrice = (productId: string, newPrice: number) => {
+    setCart(prev => prev.map(item => {
+      if (item.productId === productId) {
+        // Allow 0 price, but usually not negative
+        const validPrice = Math.max(0, newPrice);
+        return { ...item, price: validPrice, total: item.quantity * validPrice };
       }
       return item;
     }));
@@ -677,7 +688,17 @@ const Sales: React.FC<SalesProps> = ({ products, customers, orders, currentUser 
                       <div key={item.productId} className="flex items-center justify-between p-3 border border-slate-100 rounded-lg">
                           <div className="flex-1">
                               <h4 className="font-medium text-slate-800">{item.productName}</h4>
-                              <p className="text-sm text-blue-600">{item.price.toLocaleString('vi-VN')} ₫</p>
+                               <div className="flex items-center gap-1 mt-1">
+                                  <input
+                                      type="number"
+                                      min="0"
+                                      className="w-24 p-1 text-sm border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none text-blue-600 font-bold bg-slate-50 focus:bg-white transition-colors"
+                                      value={item.price}
+                                      onChange={(e) => updatePrice(item.productId, parseInt(e.target.value) || 0)}
+                                      onFocus={(e) => e.target.select()}
+                                  />
+                                  <span className="text-xs text-slate-400 font-medium underline decoration-dotted" title="Giá bán">đ</span>
+                              </div>
                           </div>
                           <div className="flex items-center gap-3">
                               <div className="flex items-center gap-1">
@@ -805,83 +826,99 @@ const Sales: React.FC<SalesProps> = ({ products, customers, orders, currentUser 
                 </div>
             </div>
 
-            {/* 2. Payment Card */}
+            {/* 2. Bill Details Card - New Layout */}
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-purple-600"/> Thông tin hóa đơn
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-4 mb-2">
+                   <div>
+                      <p className="text-xs text-slate-500 mb-1">Tổng tiền hàng</p>
+                      <p className="font-bold text-slate-800 text-lg">{subTotal.toLocaleString('vi-VN')}</p>
+                   </div>
+                   
+                   <div>
+                       <p className="text-xs text-slate-500 mb-1 flex items-center gap-1"><Tag className="w-3 h-3"/> Giảm giá</p>
+                       <div className="relative">
+                            <input 
+                                type="number"
+                                className="w-full py-1 px-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-right font-medium text-sm"
+                                value={discount === 0 ? '' : discount}
+                                onChange={e => setDiscount(Number(e.target.value))}
+                                onFocus={(e) => e.target.select()}
+                                placeholder="0"
+                            />
+                       </div>
+                   </div>
+                </div>
+            </div>
+
+            {/* 3. Payment Card - Refactored */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                     <Wallet className="h-5 w-5 text-green-600"/> Thanh toán
                 </h3>
                 
                 <div className="space-y-4">
-                     {/* Summary Info with Discount */}
-                     <div className="flex justify-between items-center text-sm text-slate-600">
-                        <span>Tổng tiền hàng:</span>
-                        <span className="font-bold text-slate-800">{subTotal.toLocaleString('vi-VN')}</span>
-                     </div>
-                     
-                     {/* Discount Input */}
-                     <div className="flex justify-between items-center">
-                        <label className="text-sm text-slate-600">Giảm giá:</label>
-                        <div className="w-32 relative">
-                            <input 
-                                type="number"
-                                className="w-full py-1.5 px-2 text-right border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium"
-                                value={discount}
-                                onChange={e => setDiscount(Number(e.target.value))}
-                                onFocus={(e) => e.target.select()}
-                                placeholder="0"
-                            />
-                        </div>
-                     </div>
-                     
-                     <div className="h-px bg-slate-100 my-2"></div>
-
-                     {/* Final Total & Debt Summary */}
-                     <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                            <p className="text-xs text-slate-500 font-medium uppercase">Khách cần trả</p>
-                            <p className="text-xl font-bold text-blue-600">{finalAmount.toLocaleString('vi-VN')}</p>
-                        </div>
-                         <div className={`bg-slate-50 p-3 rounded-lg border border-slate-100 ${
-                             (finalAmount - paidAmount) > 0 ? 'bg-orange-50 border-orange-100' : 'bg-green-50 border-green-100'
-                         }`}>
-                            <p className="text-xs text-slate-500 font-medium uppercase">Còn nợ</p>
-                            <p className={`text-xl font-bold ${(finalAmount - paidAmount) > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                                {Math.max(0, finalAmount - paidAmount).toLocaleString('vi-VN')}
-                            </p>
-                        </div>
+                     {/* Final Amount Highlight */}
+                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-center">
+                        <p className="text-xs text-slate-500 font-medium uppercase mb-1">Khách phải trả</p>
+                        <p className="text-3xl font-bold text-blue-600 tracking-tight">{finalAmount.toLocaleString('vi-VN')}</p>
                      </div>
 
                      {/* Paid Amount Input */}
                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1.5">Khách thanh toán</label>
+                        <label className="flex justify-between text-sm font-medium text-slate-700 mb-1.5">
+                            <span>Khách thanh toán</span>
+                            <span className="text-xs font-normal text-slate-400">VNĐ</span>
+                        </label>
                         <div className="relative group">
                              <input 
                                 type="number"
-                                className="w-full p-3 pl-12 bg-slate-50 border-2 border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none font-bold text-xl transition-all"
-                                value={paidAmount}
+                                className="w-full p-3 pl-12 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none font-bold text-xl transition-all"
+                                value={paidAmount === 0 ? '' : paidAmount}
                                 onChange={e => setPaidAmount(Number(e.target.value))}
                                 onFocus={(e) => e.target.select()}
                                 placeholder="0"
                             />
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-slate-200 text-slate-600 rounded-md px-2 py-0.5 text-xs font-bold">
-                                VND
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-slate-100 text-slate-500 rounded-md px-2 py-0.5 text-xs font-bold pointer-events-none">
+                                $
                             </div>
                         </div>
+                        
+                        {/* Quick Action Buttons */}
                         <div className="flex gap-2 mt-2">
                             <button 
                                 onClick={() => setPaidAmount(finalAmount)}
-                                className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-medium transition-colors"
+                                className="flex-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg font-medium transition-colors border border-blue-100"
                             >
                                 Trả đủ
                             </button>
                              <button 
                                 onClick={() => setPaidAmount(0)}
-                                className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-medium transition-colors"
+                                className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-lg font-medium transition-colors"
                             >
                                 Xóa
                             </button>
                         </div>
                      </div>
+                     
+                     {/* Debt/Change Display */}
+                     {(paidAmount > 0 || finalAmount > 0) && (
+                         <div className={`p-3 rounded-lg border flex justify-between items-center transition-all ${
+                             (paidAmount - finalAmount) >= 0 
+                             ? 'bg-green-50 border-green-100 text-green-700' 
+                             : 'bg-orange-50 border-orange-100 text-orange-700'
+                         }`}>
+                            <span className="text-xs font-bold uppercase">
+                                {(paidAmount - finalAmount) >= 0 ? 'Tiền thừa trả khách' : 'Khách còn nợ'}
+                            </span>
+                            <span className="text-lg font-bold">
+                                {Math.abs(paidAmount - finalAmount).toLocaleString('vi-VN')}
+                            </span>
+                        </div>
+                     )}
                 </div>
 
                 <div className="mt-auto pt-6">
