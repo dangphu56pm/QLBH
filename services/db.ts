@@ -1,3 +1,4 @@
+
 import { Customer, Product, Order, User, Category, Unit, ViewState, MenuConfigItem, DebtTransaction, InventoryTransaction, SyncConfig } from '../types';
 
 const KEYS = {
@@ -20,26 +21,89 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 // --- MENU CONFIGURATION ---
 export const getMenuConfig = (): MenuConfigItem[] => {
   const data = localStorage.getItem(KEYS.MENU_CONFIG);
+  const defaultOrder: MenuConfigItem[] = [
+    { id: ViewState.DASHBOARD, isVisible: true },
+    { id: ViewState.SALES, isVisible: true },
+    { id: ViewState.CUSTOMERS, isVisible: true }, // Moved Up
+    { id: ViewState.INVENTORY, isVisible: true }, // Moved Down below Customers
+    { id: ViewState.IMPORT_STOCK, isVisible: true }, 
+    { id: ViewState.EXPORT_STOCK, isVisible: true }, 
+    { id: ViewState.CATEGORIES, isVisible: true }, 
+    { id: ViewState.UNITS, isVisible: true },
+    { id: ViewState.DEBT, isVisible: true },
+    { id: ViewState.REPORTS, isVisible: true }, 
+    { id: ViewState.USERS, isVisible: true }, // Moved Up above System
+    { id: ViewState.SYSTEM, isVisible: true },
+    { id: ViewState.SETTINGS_GENERAL, isVisible: true }, // Child of SYSTEM
+    { id: ViewState.SETTINGS_DATA, isVisible: true },    // Child of SYSTEM
+    { id: ViewState.MENU_MANAGEMENT, isVisible: true },  // Child of SYSTEM
+  ];
+
   if (!data) {
-    // Default Order
-    const defaultOrder: MenuConfigItem[] = [
-      { id: ViewState.DASHBOARD, isVisible: true },
-      { id: ViewState.SALES, isVisible: true },
-      { id: ViewState.REPORTS, isVisible: true }, 
-      { id: ViewState.INVENTORY, isVisible: true },
-      { id: ViewState.IMPORT_STOCK, isVisible: true }, 
-      { id: ViewState.EXPORT_STOCK, isVisible: true }, 
-      { id: ViewState.CATEGORIES, isVisible: true }, 
-      { id: ViewState.UNITS, isVisible: true }, // Added Units
-      { id: ViewState.CUSTOMERS, isVisible: true },
-      { id: ViewState.DEBT, isVisible: true },
-      { id: ViewState.DATA_SYNC, isVisible: true }, 
-      { id: ViewState.USERS, isVisible: true },
-    ];
     localStorage.setItem(KEYS.MENU_CONFIG, JSON.stringify(defaultOrder));
     return defaultOrder;
   }
-  return JSON.parse(data);
+
+  // Migration: Ensure new menu items exist in stored config
+  const storedConfig: MenuConfigItem[] = JSON.parse(data);
+  let hasChanges = false;
+  
+  defaultOrder.forEach(defItem => {
+      if (!storedConfig.find(item => item.id === defItem.id)) {
+          storedConfig.push(defItem);
+          hasChanges = true;
+      }
+  });
+
+  // --- MIGRATION LOGIC FOR ORDERING ---
+  
+  // 1. REPORTS below DEBT (Old request)
+  const reportsIndex = storedConfig.findIndex(i => i.id === ViewState.REPORTS);
+  const debtIndex = storedConfig.findIndex(i => i.id === ViewState.DEBT);
+  if (reportsIndex !== -1 && debtIndex !== -1 && reportsIndex < debtIndex) {
+      const [item] = storedConfig.splice(reportsIndex, 1);
+      const newDebtIndex = storedConfig.findIndex(i => i.id === ViewState.DEBT);
+      storedConfig.splice(newDebtIndex + 1, 0, item);
+      hasChanges = true;
+  }
+
+  // 2. INVENTORY below CUSTOMERS (New request)
+  // Check if INVENTORY comes BEFORE CUSTOMERS
+  const invIndex = storedConfig.findIndex(i => i.id === ViewState.INVENTORY);
+  const custIndex = storedConfig.findIndex(i => i.id === ViewState.CUSTOMERS);
+  
+  if (invIndex !== -1 && custIndex !== -1 && invIndex < custIndex) {
+      const [item] = storedConfig.splice(invIndex, 1);
+      const newCustIndex = storedConfig.findIndex(i => i.id === ViewState.CUSTOMERS);
+      storedConfig.splice(newCustIndex + 1, 0, item);
+      hasChanges = true;
+  }
+
+  // 3. USERS above SYSTEM (New request)
+  // Check if USERS comes AFTER SYSTEM
+  const userIndex = storedConfig.findIndex(i => i.id === ViewState.USERS);
+  const sysIndex = storedConfig.findIndex(i => i.id === ViewState.SYSTEM);
+
+  if (userIndex !== -1 && sysIndex !== -1 && userIndex > sysIndex) {
+      const [item] = storedConfig.splice(userIndex, 1);
+      const newSysIndex = storedConfig.findIndex(i => i.id === ViewState.SYSTEM);
+      storedConfig.splice(newSysIndex, 0, item);
+      hasChanges = true;
+  }
+
+  // Clean up removed items
+  const validIds = Object.values(ViewState);
+  const filteredConfig = storedConfig.filter(item => validIds.includes(item.id));
+  if (filteredConfig.length !== storedConfig.length) {
+      hasChanges = true;
+  }
+
+  if (hasChanges) {
+      localStorage.setItem(KEYS.MENU_CONFIG, JSON.stringify(filteredConfig));
+      return filteredConfig;
+  }
+
+  return storedConfig;
 };
 
 export const saveMenuConfig = (config: MenuConfigItem[]): void => {
@@ -56,7 +120,9 @@ export const getSyncConfig = (): SyncConfig => {
       intervalMinutes: 60, // Mặc định 60 phút
       lastBackup: new Date().toISOString(),
       expiryAlertDays: 30, // Mặc định cảnh báo trước 30 ngày
-      themeColor: 'blue' // Mặc định màu xanh
+      themeColor: 'blue', // Mặc định màu xanh
+      shopName: 'Quản Lý Bán Hàng',
+      shopLogo: ''
     };
   }
   // Migration for old config
@@ -66,6 +132,12 @@ export const getSyncConfig = (): SyncConfig => {
   }
   if (!config.themeColor) {
       config.themeColor = 'blue';
+  }
+  if (!config.shopName) {
+      config.shopName = 'Quản Lý Bán Hàng';
+  }
+  if (config.shopLogo === undefined) {
+      config.shopLogo = '';
   }
   return config;
 };
@@ -528,4 +600,147 @@ export const importDatabase = (jsonString: string): { success: boolean, message:
     } catch (e) {
         return { success: false, message: 'Lỗi khi đọc file: ' + (e as Error).message };
     }
+};
+
+// --- SAMPLE DATA GENERATOR ---
+export const generateSampleData = (): void => {
+    // 1. Clear existing transactional data
+    localStorage.removeItem(KEYS.ORDERS);
+    localStorage.removeItem(KEYS.DEBT_TRANSACTIONS);
+    localStorage.removeItem(KEYS.INVENTORY_TRANSACTIONS);
+    // Keep users and settings, but reset Products and Customers to have clean slate + new ones
+    
+    // 2. Generate Products
+    const sampleProducts: Product[] = [
+        { id: generateId(), code: 'SP001', name: 'Gạo ST25 Ông Cua', unit: 'Kg', price: 35000, cost: 28000, stock: 1500, category: 'Lương thực', batchNumber: 'L01/24', expiryDate: '2025-12-31' },
+        { id: generateId(), code: 'SP002', name: 'Nước mắm Nam Ngư', unit: 'Chai', price: 42000, cost: 35000, stock: 500, category: 'Gia vị', batchNumber: 'L02/24', expiryDate: '2025-06-30' },
+        { id: generateId(), code: 'SP003', name: 'Mì Hảo Hảo Tôm Chua Cay', unit: 'Thùng', price: 115000, cost: 105000, stock: 200, category: 'Lương thực', expiryDate: '2024-12-20' },
+        { id: generateId(), code: 'SP004', name: 'Dầu ăn Tường An 1L', unit: 'Chai', price: 55000, cost: 48000, stock: 300, category: 'Gia vị', expiryDate: '2025-08-15' },
+        { id: generateId(), code: 'SP005', name: 'Bia Tiger Thùng 24', unit: 'Thùng', price: 350000, cost: 330000, stock: 100, category: 'Đồ uống', expiryDate: '2024-11-01' },
+        { id: generateId(), code: 'SP006', name: 'Nước ngọt Coca Cola 1.5L', unit: 'Chai', price: 20000, cost: 16000, stock: 400, category: 'Đồ uống' },
+        { id: generateId(), code: 'SP007', name: 'Đường cát trắng Biên Hòa', unit: 'Kg', price: 22000, cost: 18000, stock: 600, category: 'Gia vị' },
+        { id: generateId(), code: 'SP008', name: 'Sữa Ông Thọ Đỏ', unit: 'Lon', price: 25000, cost: 21000, stock: 250, category: 'Đồ uống' },
+        { id: generateId(), code: 'SP009', name: 'Trứng gà Ba Huân (vỉ 10)', unit: 'Hộp', price: 32000, cost: 28000, stock: 100, category: 'Lương thực', expiryDate: '2024-10-15' },
+        { id: generateId(), code: 'SP010', name: 'Bánh ChocoPie Hộp 12', unit: 'Hộp', price: 50000, cost: 42000, stock: 150, category: 'Bánh kẹo' },
+    ];
+    localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(sampleProducts));
+
+    // 3. Generate Customers
+    const sampleCustomers: Customer[] = [
+        { id: generateId(), name: 'Nguyễn Văn An', phone: '0901234567', address: '123 Lê Lợi, Q1', debt: 0, gender: 'Nam', age: 35 },
+        { id: generateId(), name: 'Trần Thị Bích', phone: '0912345678', address: '45 Nguyễn Huệ, Q1', debt: 0, gender: 'Nữ', age: 28 },
+        { id: generateId(), name: 'Lê Văn Cường', phone: '0987654321', address: '789 Trần Hưng Đạo, Q5', debt: 0, gender: 'Nam', age: 40 },
+        { id: generateId(), name: 'Phạm Thị Dung', phone: '0933445566', address: '12 Võ Văn Kiệt, Q1', debt: 0, gender: 'Nữ', age: 30 },
+        { id: generateId(), name: 'Hoàng Văn Em', phone: '0977889900', address: '34 Lê Duẩn, Q1', debt: 0, gender: 'Nam', age: 25 },
+        { id: generateId(), name: 'Vũ Thị Hạnh', phone: '0909090909', address: '56 Pasteur, Q3', debt: 0, gender: 'Nữ', age: 45 },
+        { id: generateId(), name: 'Đặng Văn Giang', phone: '0911223344', address: '78 Hai Bà Trưng, Q1', debt: 0, gender: 'Nam', age: 50 },
+        { id: generateId(), name: 'Bùi Thị Hoa', phone: '0922334455', address: '90 Lý Tự Trọng, Q1', debt: 0, gender: 'Nữ', age: 32 },
+        { id: generateId(), name: 'Đỗ Văn Hùng', phone: '0944556677', address: '11 Điện Biên Phủ, BT', debt: 0, gender: 'Nam', age: 29 },
+        { id: generateId(), name: 'Ngô Thị Kim', phone: '0955667788', address: '22 Xô Viết Nghệ Tĩnh, BT', debt: 0, gender: 'Nữ', age: 38 },
+    ];
+    localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify(sampleCustomers));
+
+    // 4. Generate Orders (100 orders over 90 days)
+    const generatedOrders: Order[] = [];
+    const generatedDebtTrans: DebtTransaction[] = [];
+    const now = new Date();
+    
+    // Helper to get random item from array
+    const getRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+    
+    // Helper to get random int
+    const getRandomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+    for (let i = 0; i < 100; i++) {
+        const customer = getRandom(sampleCustomers);
+        
+        // Random date within last 90 days
+        const daysAgo = getRandomInt(0, 90);
+        const orderDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+        // Add random time
+        orderDate.setHours(getRandomInt(8, 20), getRandomInt(0, 59));
+
+        // Create random cart items (1 to 5 items)
+        const numItems = getRandomInt(1, 5);
+        const cartItems = [];
+        let totalAmount = 0;
+
+        for (let j = 0; j < numItems; j++) {
+            const product = getRandom(sampleProducts);
+            // Avoid duplicate products in one order for simplicity
+            if (cartItems.find(it => it.productId === product.id)) continue;
+
+            const quantity = getRandomInt(1, 5);
+            const total = quantity * product.price;
+            cartItems.push({
+                productId: product.id,
+                productName: product.name,
+                quantity: quantity,
+                price: product.price,
+                total: total
+            });
+            totalAmount += total;
+            
+            // Decrease stock
+            product.stock = Math.max(0, product.stock - quantity);
+        }
+
+        if (cartItems.length === 0) continue;
+
+        // Payment logic: 80% full payment, 20% partial (debt)
+        let paidAmount = totalAmount;
+        let debtAmount = 0;
+        
+        const isDebt = Math.random() < 0.2; // 20% chance
+        if (isDebt) {
+            paidAmount = Math.floor(Math.random() * totalAmount / 1000) * 1000; // Random paid amount
+            debtAmount = totalAmount - paidAmount;
+            
+            // Update customer debt
+            customer.debt += debtAmount;
+            
+            // Create debt transaction
+            generatedDebtTrans.push({
+                id: generateId(),
+                customerId: customer.id,
+                customerName: customer.name,
+                amount: debtAmount,
+                date: orderDate.toISOString(),
+                note: `Nợ từ đơn hàng tự động`,
+                staffName: 'Admin',
+                type: 'order',
+                orderId: 'temp_id' // Will update after order creation
+            });
+        }
+
+        const order: Order = {
+            id: generateId(),
+            customerId: customer.id,
+            customerName: customer.name,
+            date: orderDate.toISOString(),
+            items: cartItems,
+            totalAmount: totalAmount,
+            discount: 0,
+            finalAmount: totalAmount,
+            paidAmount: paidAmount,
+            debtAmount: debtAmount,
+            status: 'completed',
+            staffName: 'Admin'
+        };
+        
+        // Fix transaction orderId
+        const relatedTrans = generatedDebtTrans.find(t => t.date === order.date && t.customerId === customer.id);
+        if (relatedTrans) relatedTrans.orderId = order.id;
+
+        generatedOrders.push(order);
+    }
+
+    // Save all data
+    localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(sampleProducts));
+    localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify(sampleCustomers));
+    localStorage.setItem(KEYS.ORDERS, JSON.stringify(generatedOrders));
+    localStorage.setItem(KEYS.DEBT_TRANSACTIONS, JSON.stringify(generatedDebtTrans));
+
+    // Dispatch Events
+    window.dispatchEvent(new Event('db-change'));
 };

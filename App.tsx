@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ViewState, Customer, Product, Order, User, MenuConfigItem } from './types';
 import Sidebar from './components/Sidebar';
@@ -13,7 +14,8 @@ import MenuManagement from './components/MenuManagement';
 import CategoryManagement from './components/CategoryManagement';
 import UnitManagement from './components/UnitManagement'; // New Component
 import StockMovement from './components/StockMovement'; // New Component
-import DataSync from './components/DataSync'; // New Component
+import DataSync from './components/DataSync'; // Re-enabled
+import SystemConfig from './components/SystemConfig'; // Modified Component
 import { getCustomers, getProducts, getOrders, getCurrentUser, getMenuConfig, getSyncConfig, exportDatabase, updateLastBackupTime } from './services/db';
 import { Menu, Lock, ShieldAlert, DownloadCloud } from 'lucide-react';
 
@@ -232,8 +234,15 @@ const App: React.FC = () => {
         return isAdmin ? <Reports orders={orders} products={products} /> : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
       case ViewState.DEBT:
         return isAdmin ? <Debt customers={customers} currentUser={currentUser} /> : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
-      case ViewState.DATA_SYNC:
+      // New Routes
+      case ViewState.SETTINGS_GENERAL:
+        return isAdmin ? <SystemConfig /> : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
+      case ViewState.SETTINGS_DATA:
         return isAdmin ? <DataSync /> : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
+      case ViewState.SYSTEM: 
+        // Fallback or Parent View
+        return isAdmin ? <SystemConfig /> : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
+        
       case ViewState.USERS:
         return isAdmin ? <UserManagement /> : <div className="p-4 text-red-500">Bạn không có quyền truy cập.</div>;
       case ViewState.MENU_MANAGEMENT:

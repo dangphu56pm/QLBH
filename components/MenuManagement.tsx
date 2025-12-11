@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ViewState, MenuConfigItem } from '../types';
 import { getMenuConfig, saveMenuConfig } from '../services/db';
@@ -14,7 +15,10 @@ const VIEW_LABELS: Record<string, string> = {
   [ViewState.EXPORT_STOCK]: 'Xuất kho',
   [ViewState.CUSTOMERS]: 'Khách hàng',
   [ViewState.DEBT]: 'Công nợ',
-  [ViewState.DATA_SYNC]: 'Dữ liệu & Đồng bộ',
+  [ViewState.SYSTEM]: 'Cấu hình hệ thống (Menu cha)',
+  [ViewState.SETTINGS_GENERAL]: 'Cài đặt chung',
+  [ViewState.SETTINGS_DATA]: 'Dữ liệu & Sao lưu',
+  [ViewState.MENU_MANAGEMENT]: 'Quản lý Menu',
   [ViewState.USERS]: 'Nhân viên',
 };
 

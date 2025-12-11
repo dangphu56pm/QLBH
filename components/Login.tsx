@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { login } from '../services/db';
+
+import React, { useState, useEffect } from 'react';
+import { login, getSyncConfig } from '../services/db';
 import { User } from '../types';
 import { Lock, User as UserIcon, LogIn } from 'lucide-react';
 
@@ -11,6 +12,15 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [branding, setBranding] = useState({ name: 'Sales Manager', logo: '' });
+
+  useEffect(() => {
+      const config = getSyncConfig();
+      setBranding({ 
+          name: config.shopName || 'Hệ Thống Bán Hàng', 
+          logo: config.shopLogo || '' 
+      });
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,12 +35,16 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="bg-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-white shadow-lg shadow-blue-300">
-            <Lock className="h-8 w-8" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-800">Đăng Nhập Hệ Thống</h1>
-          <p className="text-slate-500 mt-2">Vui lòng nhập thông tin để tiếp tục</p>
+        <div className="text-center mb-8 flex flex-col items-center">
+          {branding.logo ? (
+              <img src={branding.logo} alt="Logo" className="w-24 h-24 object-contain mb-4 rounded-xl" />
+          ) : (
+              <div className="bg-blue-600 w-16 h-16 rounded-full flex items-center justify-center mb-4 text-white shadow-lg shadow-blue-300">
+                <Lock className="h-8 w-8" />
+              </div>
+          )}
+          <h1 className="text-2xl font-bold text-slate-800">{branding.name}</h1>
+          <p className="text-slate-500 mt-2">Vui lòng đăng nhập để tiếp tục</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

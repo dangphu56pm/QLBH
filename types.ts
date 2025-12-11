@@ -1,3 +1,4 @@
+
 export interface Product {
   id: string;
   code: string;
@@ -117,7 +118,9 @@ export enum ViewState {
   DEBT = 'DEBT',
   USERS = 'USERS', // View quản lý nhân viên
   MENU_MANAGEMENT = 'MENU_MANAGEMENT', // View quản lý menu
-  DATA_SYNC = 'DATA_SYNC', // View quản lý dữ liệu
+  SYSTEM = 'SYSTEM', // View cấu hình hệ thống (Parent)
+  SETTINGS_GENERAL = 'SETTINGS_GENERAL', // Cài đặt chung
+  SETTINGS_DATA = 'SETTINGS_DATA', // Dữ liệu & Sao lưu
 }
 
 export interface MenuConfigItem {
@@ -132,4 +135,6 @@ export interface SyncConfig {
   lastBackup: string; // Thời điểm backup gần nhất (ISO String)
   expiryAlertDays: number; // Cảnh báo hết hạn trước bao nhiêu ngày (Mặc định 30)
   themeColor?: string; // Màu chủ đạo (blue, green, orange, purple, rose, slate)
+  shopName?: string; // Tên cửa hàng
+  shopLogo?: string; // Base64 Data URL của Logo
 }

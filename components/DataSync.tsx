@@ -1,34 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { exportDatabase, importDatabase, getSyncConfig, saveSyncConfig } from '../services/db';
-import { Download, Upload, Database, CheckCircle, AlertCircle, RefreshCw, FileJson, Clock, Settings, ToggleLeft, ToggleRight, Save, HardDrive, AlertTriangle, Calendar, Palette, Check } from 'lucide-react';
-import { SyncConfig } from '../types';
 
-const THEME_OPTIONS = [
-  { id: 'blue', name: 'Xanh Dương', color: '#2563eb' },
-  { id: 'emerald', name: 'Xanh Lá', color: '#10b981' },
-  { id: 'violet', name: 'Tím', color: '#8b5cf6' },
-  { id: 'amber', name: 'Vàng Cam', color: '#f59e0b' },
-  { id: 'rose', name: 'Đỏ Hồng', color: '#f43f5e' },
-  { id: 'cyan', name: 'Xanh Ngọc', color: '#06b6d4' },
-];
+import React, { useState, useEffect } from 'react';
+import { exportDatabase, importDatabase, getSyncConfig, saveSyncConfig, generateSampleData } from '../services/db';
+import { Download, Upload, Database, CheckCircle, AlertCircle, RefreshCw, FileJson, HardDrive, Settings, ToggleRight, ToggleLeft, AlertTriangle, Wand2 } from 'lucide-react';
+import { SyncConfig } from '../types';
 
 const DataSync: React.FC = () => {
   const [importStatus, setImportStatus] = useState<{success: boolean, message: string} | null>(null);
   const [lastBackup, setLastBackup] = useState<string>('');
   const [isPersisted, setIsPersisted] = useState<boolean>(false);
+  const [syncConfig, setSyncConfig] = useState<SyncConfig>(getSyncConfig());
   
-  // Settings State
-  const [syncConfig, setSyncConfig] = useState<SyncConfig>({
-      autoBackup: false,
-      intervalMinutes: 60,
-      lastBackup: '',
-      expiryAlertDays: 30,
-      themeColor: 'blue'
-  });
-
-  // Confirmation Modal State
+  // Auto Backup State
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingInterval, setPendingInterval] = useState<number>(60);
+  
+  // Sample Data State
+  const [showSampleConfirm, setShowSampleConfirm] = useState(false);
 
   useEffect(() => {
     const config = getSyncConfig();
@@ -40,6 +27,22 @@ const DataSync: React.FC = () => {
       navigator.storage.persisted().then(setIsPersisted);
     }
   }, []);
+
+  const handleConfigChange = (key: keyof SyncConfig, value: any) => {
+      const newConfig = { ...syncConfig, [key]: value };
+      setSyncConfig(newConfig);
+      saveSyncConfig(newConfig);
+  };
+
+  const initiateIntervalChange = (newValue: number) => {
+    setPendingInterval(newValue);
+    setShowConfirmModal(true);
+  };
+
+  const confirmIntervalChange = () => {
+    handleConfigChange('intervalMinutes', pendingInterval);
+    setShowConfirmModal(false);
+  };
 
   const handleExport = () => {
     const jsonString = exportDatabase();
@@ -83,69 +86,36 @@ const DataSync: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleConfigChange = (key: keyof SyncConfig, value: any) => {
-      const newConfig = { ...syncConfig, [key]: value };
-      setSyncConfig(newConfig);
-      saveSyncConfig(newConfig);
-  };
-
-  const initiateIntervalChange = (newValue: number) => {
-    setPendingInterval(newValue);
-    setShowConfirmModal(true);
-  };
-
-  const confirmIntervalChange = () => {
-    handleConfigChange('intervalMinutes', pendingInterval);
-    setShowConfirmModal(false);
+  const handleGenerateSample = () => {
+      generateSampleData();
+      setShowSampleConfirm(false);
+      setImportStatus({ success: true, message: 'Đã tạo dữ liệu mẫu thành công!' });
+      setTimeout(() => {
+           window.location.reload();
+      }, 1500);
   };
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-        <Database className="h-8 w-8 text-blue-600" /> Quản Lý & Đồng Bộ Dữ Liệu
+        <Database className="h-8 w-8 text-blue-600" /> Quản Lý Dữ Liệu
       </h2>
 
-      {/* Configuration Card */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-purple-100 text-purple-600 rounded-full">
-                <Settings className="h-6 w-6" />
-            </div>
-            <div>
-                <h3 className="text-lg font-bold text-slate-800">Cấu hình Hệ thống</h3>
-                <p className="text-sm text-slate-500">Cài đặt giao diện, sao lưu và cảnh báo.</p>
-            </div>
-        </div>
-        
-        <div className="space-y-6">
-            
-            {/* Theme Selector */}
-            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                <div className="flex items-center gap-2 mb-3">
-                    <Palette className="h-5 w-5 text-blue-600" />
-                    <span className="font-medium text-slate-700">Màu sắc chủ đạo:</span>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                    {THEME_OPTIONS.map((theme) => (
-                        <button
-                            key={theme.id}
-                            onClick={() => handleConfigChange('themeColor', theme.id)}
-                            className={`group relative w-10 h-10 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${
-                                syncConfig.themeColor === theme.id ? 'ring-2 ring-offset-2 ring-blue-400' : ''
-                            }`}
-                            style={{ backgroundColor: theme.color }}
-                            title={theme.name}
-                        >
-                            {syncConfig.themeColor === theme.id && (
-                                <Check className="h-5 w-5 text-white" />
-                            )}
-                        </button>
-                    ))}
-                </div>
-            </div>
+      {/* Sync Status Banner */}
+      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-slate-500" />
+              <span className="text-slate-600 font-medium">Lần sao lưu cuối:</span>
+              <span className="font-bold text-slate-800">{lastBackup}</span>
+          </div>
+      </div>
 
-            {/* Auto Backup Setting */}
-            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4 transition-all duration-300">
+      {/* Auto Backup Configuration */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <Settings className="h-5 w-5 text-blue-600" /> Cấu hình tự động
+          </h3>
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4 transition-all duration-300">
                 <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
                     <div className="flex items-center gap-2">
                         <span className="font-medium text-slate-700">Tự động sao lưu:</span>
@@ -179,35 +149,7 @@ const DataSync: React.FC = () => {
                         </div>
                     )}
                 </div>
-                
-                <div className="text-sm text-slate-500 flex items-center gap-1 bg-white px-3 py-1.5 rounded-md border border-slate-200 shadow-sm">
-                     <RefreshCw className="h-4 w-4 text-slate-400" />
-                     <span>Lần sao lưu cuối: <span className="font-medium text-slate-700">{lastBackup}</span></span>
-                </div>
             </div>
-
-            {/* Expiry Alert Setting */}
-             <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 flex flex-col md:flex-row items-center gap-4">
-                <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-orange-500" />
-                    <span className="font-medium text-slate-700">Cảnh báo hết hạn trước:</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <input 
-                        type="number"
-                        min="1"
-                        max="365"
-                        value={syncConfig.expiryAlertDays || 30}
-                        onChange={(e) => handleConfigChange('expiryAlertDays', parseInt(e.target.value))}
-                        className="w-20 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-center font-bold"
-                    />
-                    <span className="text-slate-600">ngày</span>
-                </div>
-                <p className="text-xs text-slate-400 italic flex-1">
-                    (Sản phẩm có hạn sử dụng còn lại ít hơn số ngày này sẽ được tô đỏ)
-                </p>
-             </div>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -316,6 +258,27 @@ const DataSync: React.FC = () => {
                  </div>
              </div>
         </div>
+        
+        {/* Sample Data Generator */}
+        <div className="col-span-1 md:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                 <div className="flex items-center gap-3">
+                     <div className="p-3 bg-purple-100 text-purple-600 rounded-full">
+                         <Wand2 className="h-6 w-6" />
+                     </div>
+                     <div>
+                         <h3 className="text-lg font-bold text-slate-800">Tạo dữ liệu mẫu</h3>
+                         <p className="text-sm text-slate-500">Tự động tạo 10 khách hàng và 100 đơn hàng trong 90 ngày qua để kiểm thử.</p>
+                     </div>
+                 </div>
+                 <button 
+                    onClick={() => setShowSampleConfirm(true)}
+                    className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold shadow-lg shadow-purple-200 transition-colors whitespace-nowrap"
+                 >
+                     Tạo dữ liệu mẫu
+                 </button>
+             </div>
+        </div>
       </div>
 
       {/* Confirmation Modal */}
@@ -345,6 +308,39 @@ const DataSync: React.FC = () => {
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-lg shadow-blue-200"
                 >
                   Xác nhận
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Sample Data Confirmation Modal */}
+      {showSampleConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl w-full max-w-sm shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="p-6 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 mb-4">
+                <Wand2 className="h-6 w-6 text-purple-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Tạo dữ liệu mẫu?</h3>
+              <p className="text-slate-500 mb-6">
+                Hệ thống sẽ <b>XÓA TOÀN BỘ</b> đơn hàng, khách hàng và sản phẩm hiện tại, sau đó tạo mới dữ liệu mẫu.
+                <br/>
+                <span className="text-xs text-red-500 mt-2 block font-bold">Hành động này không thể hoàn tác!</span>
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowSampleConfirm(false)}
+                  className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium"
+                >
+                  Hủy bỏ
+                </button>
+                <button 
+                  onClick={handleGenerateSample}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium shadow-lg shadow-purple-200"
+                >
+                  Đồng ý tạo
                 </button>
               </div>
             </div>
